@@ -43,14 +43,14 @@ def get_current_time(dummy):
 
 if __name__ == '__main__':
 
-    application = ApplicationBuilder().token(os.environ.get("TELEGRAM_KEY")).pool_timeout(10).build()
+    application = ApplicationBuilder().token(os.getenv("TELEGRAM_KEY")).pool_timeout(10).build()
 
     start_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, assistant)
     application.add_handler(start_handler)
 
     # model = "gpt-4-1106-preview"
     model = "gpt-3.5-turbo-1106"
-    client = openai_api.OpenAI_API(os.environ.get("OPENAI_KEY"), model)
+    client = openai_api.OpenAI_API(os.getenv("OPENAI_KEY"), model)
     reminder = Reminders(application.bot)
 
     client.add_function(get_current_time, "get_current_time", "Returns the current time")
