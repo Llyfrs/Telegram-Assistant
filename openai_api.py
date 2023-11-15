@@ -12,6 +12,7 @@ class OpenAI_API:
         self.assistant = None
         self.thread = None
         self.run = None
+        self.last_message = None
 
     def create(self):
         tools = [{"type": "code_interpreter"}]
@@ -41,6 +42,8 @@ class OpenAI_API:
             content=message
         )
 
+        self.last_message = message.id
+
     def get_last_message(self):
         messages = self.client.beta.threads.messages.list(
             thread_id=self.thread.id,
@@ -48,7 +51,20 @@ class OpenAI_API:
 
         return messages.data[0].content[0].text.value
 
+    def get_new_messages(self):
+
+        messages = self.client.beta.threads.messages.list(
+            thread_id=self.thread.id,
+            before=self.last_message
+        )
+
+        self.last_message = (messages.data[0].id if len(messages.data) > 0 else self.last_message)
+
+        return messages
+
     def run_assistant(self):
+        used_functions = []
+
         self.run = self.client.beta.threads.runs.create(
             thread_id=self.thread.id,
             assistant_id=self.assistant.id
@@ -61,12 +77,25 @@ class OpenAI_API:
                 return
 
             if self.run.status == "requires_action":
+
+                for tool in self.run.required_action.submit_tool_outputs.tool_calls:
+                    used_functions.append(tool.function.name)
                 ## print(self.run)
                 self.client.beta.threads.runs.submit_tool_outputs(
                     run_id=self.run.id,
                     thread_id=self.thread.id,
                     tool_outputs=self.functions.process_required_actions(self.run.required_action)
                 )
+
+        run_steps = self.client.beta.threads.runs.steps.list(
+            thread_id=self.thread.id,
+            run_id=self.run.id
+        )
+
+        for step in run_steps.data:
+            print(step)
+
+        return used_functions
 
     def delete_assistant(self, id: str = None):
         if id == None:

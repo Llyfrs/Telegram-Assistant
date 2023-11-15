@@ -28,7 +28,8 @@ class Reminder:
         self.thread.cancel()
 
 
-def convert_seconds_to_hms(seconds):
+def convert_seconds_to_hms(seconds : int):
+
     hours, remainder = divmod(seconds, 3600)
     minutes, seconds = divmod(remainder, 60)
     return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
@@ -55,7 +56,7 @@ class Reminders:
             logging.error(f"Error loading reminders: {exc}")
             pass
 
-    def add_reminder(self, seconds: int, reminder: str = ""):
+    def add_reminder(self, seconds: int, reminder: str = " "):
         rem = Reminder(seconds, self.chat_id, reminder, self.bot)
         self.reminders.append(rem)
         self.reminder_data.append((time.time() + seconds, reminder, self.chat_id))
@@ -64,13 +65,26 @@ class Reminders:
             pickle.dump(self.reminder_data, file)
 
         logging.info(f"Reminder set for {convert_seconds_to_hms(seconds)} from now")
+
         return f"Reminder set for {convert_seconds_to_hms(seconds)} from now"
 
     def get_reminders(self):
-        return self.reminders
 
-    def remove_reminder(self, index):
-        self.reminders.pop(index)
-        self.reminder_data.pop(index)
+        list_string_data = []
+        for i, reminder in enumerate(self.reminder_data):
+            list_string_data.append(f"{i}: {reminder[1]} finished in {convert_seconds_to_hms(int (reminder[0] - time.time()))}")
+
+        return "\n".join(list_string_data)
+
+    def remove_reminders(self, indexes: list[int]):
+        indexes.sort(reverse=True)
+
+        for index in indexes:
+            self.reminders[index].cancel()
+            self.reminders.pop(index)
+            self.reminder_data.pop(index)
+
         with open("reminders.pickle", "wb") as file:
             pickle.dump(self.reminder_data, file)
+
+        return "Reminders deleted"

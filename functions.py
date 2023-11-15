@@ -17,21 +17,24 @@ class Function:
         if name in self.function.__annotations__:
             typ = self.function.__annotations__[name]
         else:
-            return "string"
+            return {"type": "string"}
 
         if typ == int:
-            return "integer"
+            return {"type": "integer"}
 
         if typ == str:
-            return "string"
+            return {"type": "string"}
 
         if typ == float:
-            return "float"
+            return {"type": "number"}
 
         if typ == bool:
-            return "boolean"
+            return {"type": "boolean"}
 
-        return "string"
+        if typ == list[int]:
+            return {"type": "array", "items": {"type": "integer"}}
+
+        return {"type": "string"}
 
     def generate_definition(self):
         parameters = {
@@ -41,9 +44,7 @@ class Function:
         }
 
         for parameter in inspect.signature(self.function).parameters:
-            parameters["properties"][parameter] = {
-                "type": self.get_parameter_type(parameter)
-            }
+            parameters["properties"][parameter] = self.get_parameter_type(parameter)
 
             if inspect.signature(self.function).parameters[parameter].default == inspect.Parameter.empty:
                 parameters["required"].append(parameter)
@@ -68,6 +69,7 @@ class Functions:
     def get_list_of_functions(self):
         output = []
         for function in self.list_of_functions:
+            print(function.generate_definition())
             output.append(function.generate_definition())
 
         return output
