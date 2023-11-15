@@ -21,7 +21,9 @@ class OpenAI_API:
         self.assistant = self.client.beta.assistants.update(
             assistant_id="asst_Y58Ryfj8tiaOr4KS2easHueW",
             name="Personal Assistant Prototype",
-            description="You are the users personal assistant. You can help them with tasks, remember things for them, and keep them company.",
+            description="TelegramBot Assistant",
+            instructions="You are the users personal assistant. Don't use mathjax formatting. Use code interpeter to "
+                         "calculate seconds. ",
             model=self.model,
             tools=tools
         )
@@ -55,7 +57,8 @@ class OpenAI_API:
 
         messages = self.client.beta.threads.messages.list(
             thread_id=self.thread.id,
-            before=self.last_message
+            after=self.last_message,
+            order="asc"
         )
 
         self.last_message = (messages.data[0].id if len(messages.data) > 0 else self.last_message)
@@ -63,7 +66,6 @@ class OpenAI_API:
         return messages
 
     def run_assistant(self):
-        used_functions = []
 
         self.run = self.client.beta.threads.runs.create(
             thread_id=self.thread.id,
@@ -78,9 +80,6 @@ class OpenAI_API:
 
             if self.run.status == "requires_action":
 
-                for tool in self.run.required_action.submit_tool_outputs.tool_calls:
-                    used_functions.append(tool.function.name)
-                ## print(self.run)
                 self.client.beta.threads.runs.submit_tool_outputs(
                     run_id=self.run.id,
                     thread_id=self.thread.id,
@@ -92,10 +91,7 @@ class OpenAI_API:
             run_id=self.run.id
         )
 
-        for step in run_steps.data:
-            print(step)
-
-        return used_functions
+        return run_steps
 
     def delete_assistant(self, id: str = None):
         if id == None:

@@ -69,7 +69,6 @@ class Functions:
     def get_list_of_functions(self):
         output = []
         for function in self.list_of_functions:
-            print(function.generate_definition())
             output.append(function.generate_definition())
 
         return output
@@ -79,8 +78,13 @@ class Functions:
         for action in required_action.submit_tool_outputs.tool_calls:
             for func in self.list_of_functions:
                 if func.name == action.function.name:
+
+                    if action.function.arguments == None:
+                        action.function.arguments = "{}"
+
                     arguments = json.loads(action.function.arguments)
                     result = str(func.function(**arguments))
+
                     tool_outputs.append({
                         "tool_call_id": action.id,
                         "output": result
