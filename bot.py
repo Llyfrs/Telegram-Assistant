@@ -38,6 +38,10 @@ async def toggle_debug(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"Debug is now {settings.get_setting('debug')}")
 
 
+def escape_chars(match):
+    char = match.group(0)
+    return '\\' + char
+
 def debug(steps):
     message_index = 0
     debug_messages = [""]
@@ -53,12 +57,11 @@ def debug(steps):
             for tool_call in step.step_details.tool_calls:
                 print(tool_call)
                 if tool_call.type == "function":
-                    debug_messages[
-                        message_index] += f"{tool_call.function.name}( {tool_call.function.arguments} ) => {tool_call.function.output}) \n"
+                    debug_messages[message_index] += re.sub( r"[_*()\[\]~`>#+\-=|{}.!]", escape_chars,  f"{tool_call.function.name}( {tool_call.function.arguments} ) => {tool_call.function.output}) \n")
 
                 if tool_call.type == "code_interpreter":
                     debug_messages.append(f"Code Interpeter {code_block(tool_call.code_interpreter.input)}")
-                    debug_messages[message_index + 1] += f" \n Output: {tool_call.code_interpreter.outputs}"
+                    debug_messages[message_index + 1] += re.sub( r"[_*()\[\]~`>#+\-=|{}.!]", escape_chars, f" \n Output: {tool_call.code_interpreter.outputs}")
                     debug_messages.append("")
                     message_index += 2
 
@@ -70,14 +73,13 @@ def debug(steps):
 
 
 def code_block(code: str):
-    return "```py\n" + code + "\n```"
+    return "```py\n" + re.sub(r"`", r"\`", code) + "\n```"
 
 
 async def assistant(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reminder.chat_id = update.effective_chat.id
 
     client.add_message(update.message.text)
-
 
     steps = client.run_assistant()
 
@@ -87,7 +89,7 @@ async def assistant(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if dbg_msg == "":
                 continue
 
-            await context.bot.send_message(chat_id=update.effective_chat.id, text=re.escape(dbg_msg))
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=dbg_msg, parse_mode="MarkdownV2")
 
     # Sometimes the run is finished but the new message didn't arrive yet
     # so this will make sure we won't miss it
