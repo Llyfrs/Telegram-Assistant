@@ -20,7 +20,6 @@ def debug(steps):
     The idea it that function calls can be returned as a one message while tools like code interpreter get their own block.
     The string is return formatted for MarkdownV2
     """
-
     message_index = 0
     debug_messages = [""]
     for step in steps.data:
@@ -47,5 +46,6 @@ def debug(steps):
     if debug_messages[message_index] == "":
         debug_messages.pop(message_index)
 
-    debug_messages.reverse()
+    """Looks like it shouldn't be reversed. Even thous it acted like it should be."""
+    # debug_messages.reverse()
     return debug_messages

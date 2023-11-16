@@ -34,6 +34,9 @@ def convert_seconds_to_hms(seconds: int):
     return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
 
+def calculate_seconds(days: int = 0, hours: int = 0, minutes: int = 0, seconds: int = 0):
+    return days * 86400 + hours * 3600 + minutes * 60 + seconds
+
 class Reminders:
     def __init__(self, bot):
         self.reminders = []

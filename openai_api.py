@@ -3,7 +3,6 @@ from functions import Functions
 
 
 class OpenAI_API:
-
     def __init__(self, key: str, model: str = "gpt-3.5-turbo-1106"):
         self.key = key
         self.client = openai.Client(api_key=key)
@@ -22,8 +21,7 @@ class OpenAI_API:
             assistant_id="asst_Y58Ryfj8tiaOr4KS2easHueW",
             name="Personal Assistant Prototype",
             description="TelegramBot Assistant",
-            instructions="You are the users personal assistant. Don't use mathjax formatting. Use code interpeter to "
-                         "calculate seconds. ",
+            instructions="You are the users personal assistant. Don't use mathjax formatting. You are bad at math so make sure to use code interpreter for it.",
             model=self.model,
             tools=tools
         )

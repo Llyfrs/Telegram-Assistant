@@ -8,7 +8,7 @@ import openai_api
 import os
 import logging
 import datetime
-from modules.reminder import Reminders
+from modules.reminder import Reminders, calculate_seconds
 from modules.Settings import Settings
 from modules.tools import debug
 
@@ -105,8 +105,8 @@ if __name__ == '__main__':
     reminder = Reminders(application.bot)
 
     client.add_function(get_current_time, "get_current_time", "Returns the current time")
-    client.add_function(reminder.add_reminder, "add_reminder",
-                        "Creates reminder. Use code interpreter to calculate seconds")
+    client.add_function(calculate_seconds, "calculate_seconds", "Calculates seconds from days, hours, minutes and seconds. Use to get seconds for reminder")
+    client.add_function(reminder.add_reminder, "add_reminder", "Creates reminder. Use code interpreter to calculate seconds if needed")
     client.add_function(reminder.remove_reminders, "cancel_reminder", "Cancels reminders.")
     client.add_function(reminder.get_reminders, "get_reminders", "Returns list of all running reminders")
 
