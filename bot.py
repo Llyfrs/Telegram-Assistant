@@ -76,6 +76,7 @@ async def assistant(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 def get_current_time():
+    # TODO: Show local time and don't show seconds as float
     current_time_and_date = datetime.datetime.now()
     print("Returning time:" + str(current_time_and_date))
     return current_time_and_date
@@ -105,8 +106,10 @@ if __name__ == '__main__':
     reminder = Reminders(application.bot)
 
     client.add_function(get_current_time, "get_current_time", "Returns the current time")
-    client.add_function(calculate_seconds, "calculate_seconds", "Calculates seconds from days, hours, minutes and seconds. Use to get seconds for reminder")
-    client.add_function(reminder.add_reminder, "add_reminder", "Creates reminder. Use code interpreter to calculate seconds if needed")
+    client.add_function(calculate_seconds, "calculate_seconds",
+                        "Calculates seconds from days, hours, minutes and seconds. Use to get seconds for reminder")
+    client.add_function(reminder.add_reminder, "add_reminder",
+                        "Creates reminder. Use code interpreter to calculate seconds if needed")
     client.add_function(reminder.remove_reminders, "cancel_reminder", "Cancels reminders.")
     client.add_function(reminder.get_reminders, "get_reminders", "Returns list of all running reminders")
 

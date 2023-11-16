@@ -101,3 +101,7 @@ class OpenAI_API:
 
     def add_function(self, function, name: str, description: str = ""):
         self.functions.add_function(function, name, description)
+
+
+    def get_usage(self):
+        return self.client.organization
