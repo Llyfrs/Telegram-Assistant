@@ -1,9 +1,6 @@
 #!/usr/bin/python3
 
 import asyncio
-import time
-
-import markdownify
 import telegram
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
@@ -13,8 +10,7 @@ import logging
 import datetime
 from modules.reminder import Reminders
 from modules.Settings import Settings
-from markdownify import markdownify as md
-import re
+from modules.tools import debug
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -28,59 +24,30 @@ ct = None
 
 
 async def toggle_retrieval(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """ Toggles retrieval mode.
+    This will enable the retrieval tool and switch mode to GPT4
+    """
     settings.set_setting("retrieval", not settings.get_setting("retrieval"))
 
     await update.message.reply_text(f"Retrieval is now {settings.get_setting('retrieval')}")
 
 
 async def toggle_debug(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """ Toggles debug mode """
     settings.set_setting("debug", not settings.get_setting("debug"))
     await update.message.reply_text(f"Debug is now {settings.get_setting('debug')}")
 
 
-def escape_chars(match):
-    char = match.group(0)
-    return '\\' + char
-
-def debug(steps):
-    message_index = 0
-    debug_messages = [""]
-
-    for step in steps.data:
-        print(f"Step: {step}")
-
-        if step.type == "message_creation":
-            continue
-
-        if step.type == "tool_calls":
-
-            for tool_call in step.step_details.tool_calls:
-                print(tool_call)
-                if tool_call.type == "function":
-                    debug_messages[message_index] += re.sub( r"[_*()\[\]~`>#+\-=|{}.!]", escape_chars,  f"{tool_call.function.name}( {tool_call.function.arguments} ) => {tool_call.function.output}) \n")
-
-                if tool_call.type == "code_interpreter":
-                    debug_messages.append(f"Code Interpeter {code_block(tool_call.code_interpreter.input)}")
-                    debug_messages[message_index + 1] += re.sub( r"[_*()\[\]~`>#+\-=|{}.!]", escape_chars, f" \n Output: {tool_call.code_interpreter.outputs}")
-                    debug_messages.append("")
-                    message_index += 2
-
-    if debug_messages[message_index] == "":
-        debug_messages.pop(message_index)
-
-    debug_messages.reverse()
-    return debug_messages
-
-
-def code_block(code: str):
-    return "```py\n" + re.sub(r"`", r"\`", code) + "\n```"
+async def clear_thread(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """ Clears the thread """
+    client.clear_thread()
+    await update.message.reply_text(f"Thread cleared")
 
 
 async def assistant(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reminder.chat_id = update.effective_chat.id
 
     client.add_message(update.message.text)
-
     steps = client.run_assistant()
 
     if settings.get_setting("debug"):
@@ -117,7 +84,8 @@ def get_current_time():
 async def load_commands():
     await telegram.Bot.set_my_commands(application.bot, [
         ("toggle_retrieval", "Toggles retrieval mode"),
-        ("toggle_debug", "Toggles debug mode")
+        ("toggle_debug", "Toggles debug mode"),
+        ("clear_thread", "Clears the thread")
     ])
 
 
@@ -127,6 +95,7 @@ if __name__ == '__main__':
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, assistant))
     application.add_handler(CommandHandler("toggle_retrieval", toggle_retrieval))
     application.add_handler(CommandHandler("toggle_debug", toggle_debug))
+    application.add_handler(CommandHandler("clear_thread", clear_thread))
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(load_commands())
@@ -137,7 +106,7 @@ if __name__ == '__main__':
 
     client.add_function(get_current_time, "get_current_time", "Returns the current time")
     client.add_function(reminder.add_reminder, "add_reminder",
-                        "Creates reminder, use code iterpeter to calculate seconds")
+                        "Creates reminder. Use code interpreter to calculate seconds")
     client.add_function(reminder.remove_reminders, "cancel_reminder", "Cancels reminders.")
     client.add_function(reminder.get_reminders, "get_reminders", "Returns list of all running reminders")
 
