@@ -1,3 +1,6 @@
+import logging
+import time
+
 import openai
 from functions import Functions
 
@@ -34,8 +37,20 @@ class OpenAI_API:
         self.client.beta.threads.delete(thread_id=self.thread.id)
         self.thread = self.client.beta.threads.create()
 
+    def set_model(self, model: str):
+        self.model = model
+        self.assistant = self.client.beta.assistants.update(
+            assistant_id=self.assistant.id,
+            model=model
+        )
+
     # adds message to the conversation but does not invoke AI to respond for that you need to call run()
     def add_message(self, message: str):
+
+        """This is to protect my self from spending to much"""
+        if self.model == "gpt-4-1106-preview":
+            self.clear_thread()
+
         message = self.client.beta.threads.messages.create(
             thread_id=self.thread.id,
             role="user",
@@ -71,12 +86,17 @@ class OpenAI_API:
         )
 
         while self.run.status != "completed":
+
             self.run = self.client.beta.threads.runs.retrieve(run_id=self.run.id, thread_id=self.thread.id)
 
             if self.run.status in ["failed", "cancelled", "expired"]:
                 return
 
             if self.run.status == "requires_action":
+
+                if not self.run.required_action:
+                    logging.info("Requested action but no action was provided")
+                    time.sleep(0.5)
 
                 self.client.beta.threads.runs.submit_tool_outputs(
                     run_id=self.run.id,
@@ -101,7 +121,6 @@ class OpenAI_API:
 
     def add_function(self, function, name: str, description: str = ""):
         self.functions.add_function(function, name, description)
-
 
     def get_usage(self):
         return self.client.organization

@@ -16,6 +16,7 @@ class Settings:
             self.settings = {
                 "retrieval": False,  # This will enable the retrieval tool and switch mode to GPT4
                 "debug": False,
+                "wolframalpha_app_id": None,
             }
 
     def save_settings(self):

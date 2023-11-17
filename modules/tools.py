@@ -22,13 +22,18 @@ def debug(steps):
     """
     message_index = 0
     debug_messages = [""]
-    for step in steps.data:
+
+    data = list(steps.data)
+    data.reverse()
+
+    for step in data:
         print(f"Step: {step}")
 
         if step.type == "message_creation":
             continue
 
         if step.type == "tool_calls":
+
 
             for tool_call in step.step_details.tool_calls:
                 print(tool_call)
@@ -47,5 +52,4 @@ def debug(steps):
         debug_messages.pop(message_index)
 
     """Looks like it shouldn't be reversed. Even thous it acted like it should be."""
-    # debug_messages.reverse()
     return debug_messages

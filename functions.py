@@ -79,11 +79,15 @@ class Functions:
             for func in self.list_of_functions:
                 if func.name == action.function.name:
 
-                    if action.function.arguments == None:
+                    if action.function.arguments is None:
                         action.function.arguments = "{}"
 
-                    arguments = json.loads(action.function.arguments)
-                    result = str(func.function(**arguments))
+                    result = ""
+                    try:
+                        arguments = json.loads(action.function.arguments)
+                        result = str(func.function(**arguments))
+                    except Exception as exc:
+                        result = "Function call failed: " + str(exc)
 
                     tool_outputs.append({
                         "tool_call_id": action.id,
