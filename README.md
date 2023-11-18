@@ -23,6 +23,27 @@ Currently the AI assistant can only create timers / reminders and run python cod
 - `add_reminder` - adds reminder, that will send message to the user when it expires
 - `get_reminders` - returns list off all reminders and their indexes
 - `remove_reminders` - accepts array of indexes of reminders that are to be removed 
+- `calculate` - Uses wolfram alpha to calculate expressions. This is way to avoid the AI having to do math itself or use code interpreter to do it.
+
+## Thoughts and discoveries
+
+### Function output 
+Looks like function output should be formatted in the style of json or at least provide context as a see better results when I do. 
+I can only guess this is because the AI doesn't remember what functions it called so when it calls for example `get_current_time` and gets only time like 10:20:34 
+it just remembers some numbers as result and doesn't know the context of them but if you return {"current_time":"10:16:19"} it will now know that what it got is current time. 
+Example of this: The AI really struggles to use `get_current_time`with set reminder function to create reminders for specific times not in specific time.
+
+![image](https://i.imgur.com/jJj0pVN.png)
+
+After some more testing the problem could have been with the fact that I was returning time that had seconds as float making the AI not recognize it necessarily  as time.
+
+### Error handling
+The AI has the ability to recognize errors and try again, but it seems this is very strict as it will only recognize outputs that specifically say that the function call failed. 
+When your function returns result that is clearly incorrect it doesn't seem to recognize it as an error and will pretend the funtion did what it should have. 
+
+![img.png](https://i.imgur.com/ihSAPrS.png)
+
+
 
 ## Examples 
 ![image](https://github.com/Llyfrs/Telegram-Assistant/assets/59464917/625d79b4-26fa-414f-bb47-70d4aae3e9be)

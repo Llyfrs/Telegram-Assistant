@@ -92,8 +92,10 @@ async def assistant(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def get_current_time():
     # TODO: Show local time and don't show seconds as float
     current_time_and_date = datetime.datetime.now()
-    print("Returning time:" + str(current_time_and_date))
-    return current_time_and_date
+    current_time_and_date = current_time_and_date.strftime("%H:%M:%S %d/%m/%Y")
+
+    print("Returning time: " + str(current_time_and_date))
+    return {"current_time": current_time_and_date}
 
 
 async def load_commands():

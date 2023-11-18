@@ -23,6 +23,9 @@ def debug(steps):
     message_index = 0
     debug_messages = [""]
 
+    if steps is None:
+        return ["No steps found"]
+
     data = list(steps.data)
     data.reverse()
 
@@ -33,7 +36,6 @@ def debug(steps):
             continue
 
         if step.type == "tool_calls":
-
 
             for tool_call in step.step_details.tool_calls:
                 print(tool_call)

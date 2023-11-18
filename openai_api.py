@@ -24,7 +24,8 @@ class OpenAI_API:
             assistant_id="asst_Y58Ryfj8tiaOr4KS2easHueW",
             name="Personal Assistant Prototype",
             description="TelegramBot Assistant",
-            instructions="You are the users personal assistant. Don't use mathjax formatting. You are bad at math so make sure to use code interpreter for it.",
+            instructions="You are the users personal assistant. Don't use mathjax formatting. "
+                         "You are bad at math so make sure to use calculate function for it.",
             model=self.model,
             tools=tools
         )
