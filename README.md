@@ -43,6 +43,10 @@ When your function returns result that is clearly incorrect it doesn't seem to r
 
 ![img.png](https://i.imgur.com/ihSAPrS.png)
 
+### Multiple assistants
+They provide nice speciality to them allowing them to perform specific tasks better than general assistant can. 
+But the question is if they are needed or cheaper that just using GP-4, as this model seems to just be able to handle most task. 
+Unfortunately because of the cost I can't test with the more advanced model.
 
 
 ## Examples 
