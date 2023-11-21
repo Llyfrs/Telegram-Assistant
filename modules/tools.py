@@ -40,12 +40,12 @@ def debug(steps):
             for tool_call in step.step_details.tool_calls:
                 print(tool_call)
                 if tool_call.type == "function":
-                    debug_messages[message_index] += re.sub(r"[_*()\[\]~`>#+\-=|{}.!]", escape_chars,
-                                                            f"{tool_call.function.name}( {tool_call.function.arguments} ) => {tool_call.function.output}) \n")
+                    debug_messages[message_index] += re.sub(r"[_*()\[\]~`>#+\-=|{}.!\\]", escape_chars,
+                                                            f"{tool_call.function.name}( {tool_call.function.arguments}) => {tool_call.function.output}) \n")
 
                 if tool_call.type == "code_interpreter":
                     debug_messages.append(f"Code Interpeter {code_block(tool_call.code_interpreter.input)}")
-                    debug_messages[message_index + 1] += re.sub(r"[_*()\[\]~`>#+\-=|{}.!]", escape_chars,
+                    debug_messages[message_index + 1] += re.sub(r"[_*()\[\]~`>#+\-=|{}.!\\]", escape_chars,
                                                                 f" \n Output: {tool_call.code_interpreter.outputs}")
                     debug_messages.append("")
                     message_index += 2

@@ -12,6 +12,7 @@ from modules.reminder import Reminders, calculate_seconds
 from modules.Settings import Settings
 from modules.tools import debug
 from modules.wolfamalpha import calculate
+from modules.files import load_file, save_file, delete_file, get_sections, get_section, list_files, save_section, add_section, create_file
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -68,6 +69,8 @@ async def assistant(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if settings.get_setting("debug"):
         for dbg_msg in debug(steps):
+
+            print(dbg_msg)
             # TODO this need to be fixed ffs it's so ugly
             if dbg_msg == "":
                 continue
@@ -137,6 +140,19 @@ if __name__ == '__main__':
                         "he time does not accumulate with ever function call.")
     client.add_function(reminder.remove_reminders, "cancel_reminder", "Cancels reminders.")
     client.add_function(reminder.get_reminders, "get_reminders", "Returns list of all running reminders")
+
+    client.add_function(load_file, "load_file", "Loads file from files directory")
+    client.add_function(save_file, "save_file", "Saves file to files directory. Does not create a new file")
+    client.add_function(delete_file, "delete_file", "Deletes file from files directory")
+    client.add_function(get_sections, "get_sections", "Returns list of sections in markdown file")
+    client.add_function(get_section, "get_section", "Returns section from markdown file. User does not see the output")
+    client.add_function(list_files, "list_files", "Returns list of files in files directory")
+    client.add_function(save_section, "save_section", "Saves section to markdown file, (Overrides the existing one)")
+    client.add_function(add_section, "add_section", "Adds section to markdown file at its end")
+    client.add_function(create_file, "create_file", "Creates file in files directory")
+
+
+
 
     client.create()
 
