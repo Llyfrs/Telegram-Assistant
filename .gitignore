@@ -1,2 +1,6 @@
 /modules/files/
 /files/
+reminders.pickle
+settings.pickle
+/venv/
+/.venv/
