@@ -9,7 +9,6 @@ def escape_chars(match):
     char = match.group(0)
     return '\\' + char
 
-
 def code_block(code: str):
     return "```py\n" + re.sub(r"`", r"\`", code) + "\n```"
 

@@ -2,30 +2,33 @@ import logging
 import time
 
 import openai
+from openai.types.beta import Thread
+
 from functions import Functions
 
 
 class OpenAI_API:
-    def __init__(self, key: str, model: str = "gpt-3.5-turbo-1106"):
+    def __init__(self, key: str, model: str = "gpt-4o"):
         self.key = key
-        self.client = openai.Client(api_key=key)
+        self.client = openai.OpenAI(api_key=key, default_headers={"OpenAI-Beta": "assistants=v2"})
         self.functions = Functions()
         self.model = model
         self.assistant = None
         self.thread = None
         self.run = None
         self.last_message = None
+        self.last_run_cost = None
 
     def create(self):
         tools = [{"type": "code_interpreter"}]
         tools.extend(self.functions.get_list_of_functions())
 
         self.assistant = self.client.beta.assistants.update(
-            assistant_id="asst_Y58Ryfj8tiaOr4KS2easHueW",
-            name="Personal Assistant Prototype",
+            assistant_id="asst_auvIdEBIKEZk6vinvLA1yuUD",
+            name="Personal Assistant",
             description="TelegramBot Assistant",
             instructions="You are the users personal assistant. Don't use mathjax formatting. Remember that user does "
-                         "not see what you are putting in to functions or their ouput \n"
+                         "not see what you are putting in to functions or their output \n"
                          "## Reminders \n"
                          "When you are dealing with reminders make sure to use the function calculate to the the "
                          "correct amount of seconds. This functions also works with date and time. For example "
@@ -61,7 +64,7 @@ class OpenAI_API:
     def add_message(self, message: str):
 
         """This is to protect my self from spending to much"""
-        if self.model == "gpt-4-1106-preview":
+        if self.model == "gpt-4o":
             self.clear_thread()
 
         message = self.client.beta.threads.messages.create(
@@ -69,6 +72,7 @@ class OpenAI_API:
             role="user",
             content=message
         )
+
 
         self.last_message = message.id
 
@@ -95,14 +99,16 @@ class OpenAI_API:
 
         self.run = self.client.beta.threads.runs.create(
             thread_id=self.thread.id,
-            assistant_id=self.assistant.id
+            assistant_id=self.assistant.id,
+            truncation_strategy= {"type": "last_messages", "last_messages": 10}
         )
 
         while self.run.status != "completed":
 
             self.run = self.client.beta.threads.runs.retrieve(run_id=self.run.id, thread_id=self.thread.id)
 
-            if self.run.status in ["failed", "cancelled", "expired"]:
+            if self.run.status in ["failed", "cancelled", "expired", "incomplete"]:
+                logging.error(f"Run failed: {self.run.last_error}")
                 return
 
             if self.run.status == "requires_action":
@@ -116,6 +122,10 @@ class OpenAI_API:
                     thread_id=self.thread.id,
                     tool_outputs=self.functions.process_required_actions(self.run.required_action)
                 )
+
+
+        self.last_run_cost = self.run.usage
+        logging.info(f"Run completed with cost: {self.last_run_cost}")
 
         run_steps = self.client.beta.threads.runs.steps.list(
             thread_id=self.thread.id,
