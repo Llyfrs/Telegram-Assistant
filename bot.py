@@ -22,6 +22,8 @@ logging.basicConfig(
     level=logging.INFO
 )
 
+logging.getLogger('httpx').setLevel(logging.ERROR)
+
 chat_id = None
 ct = None
 
