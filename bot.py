@@ -13,12 +13,13 @@ import openai_api
 from modules.Settings import Settings
 from modules.reminder import Reminders, calculate_seconds
 from modules.tools import debug
+from modules.torn import Torn
 from modules.wolfamalpha import calculate, settings
 from modules.files import load_file, save_file, delete_file, get_sections, get_section, list_files, save_section, \
     add_section, create_file
 
 
-logging.getLogger('httpx').setLevel(logging.ERROR)
+
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
@@ -166,6 +167,10 @@ if __name__ == '__main__':
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(load_commands())
+
+    torn = Torn()
+    application.create_task(torn.run(application.bot))
+
     # model = "gpt-4-1106-preview"
     model = "gpt-4o-mini"
     client = openai_api.OpenAI_API(os.environ.get("OPENAI_KEY"), model)
@@ -195,6 +200,6 @@ if __name__ == '__main__':
 
     client.create()
 
-    print(client.functions.get_list_of_functions())
+    logging.info(client.functions.get_list_of_functions())
 
     application.run_polling()

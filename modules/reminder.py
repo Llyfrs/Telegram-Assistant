@@ -48,10 +48,8 @@ class Reminders:
         self.db = PostgresDB()
 
         try:
-            self.db.connect()
             temp = self.db.get_serialized("reminders")
             temp = pickle.loads(temp[0])
-            self.db.close()
 
             for reminder in temp:
                 if reminder[0] - time.time() < 0:
@@ -69,9 +67,7 @@ class Reminders:
         self.reminders.append(rem)
         self.reminder_data.append((time.time() + seconds, reminder, self.chat_id))
 
-        self.db.connect()
         self.db.insert_serialized("reminders", pickle.dumps(self.reminder_data))
-        self.db.close()
 
         logging.info(f"[REMINDER] Reminder set for {convert_seconds_to_hms(seconds)} from now")
 
@@ -100,9 +96,7 @@ class Reminders:
             self.reminders.pop(index)
             self.reminder_data.pop(index)
 
-        self.db.connect()
         self.db.insert_serialized("reminders", pickle.dumps(self.reminder_data))
-        self.db.close()
 
         return "Reminders deleted"
 

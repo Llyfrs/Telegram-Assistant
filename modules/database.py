@@ -1,6 +1,7 @@
 import logging
 import os
 import psycopg2
+from openai import timeout
 from psycopg2 import sql
 
 class PostgresDB:
@@ -23,6 +24,7 @@ class PostgresDB:
                 password=self.db_password,
                 host=self.db_host,
                 port=self.db_port
+
             )
             logging.info("Connected to the database.")
         except psycopg2.DatabaseError as e:
@@ -37,6 +39,8 @@ class PostgresDB:
 
     def insert_serialized(self, key, bytes): # pragma: no cover
         """Insert a serialized object into the database."""
+        self.connect()
+
         if self.conn is None:
             return
 
@@ -45,13 +49,19 @@ class PostgresDB:
             cur.execute(query, (key, bytes))
 
         self.conn.commit()
+        self.close()
 
     def get_serialized(self, key): # pragma: no cover
         """Retrieve a serialized object from the database."""
+
+        self.connect()
+
         if self.conn is None:
             return
 
         with self.conn.cursor() as cur:
             query = sql.SQL("SELECT bytes FROM serialized WHERE key = %s")
             cur.execute(query, (key,))
+            self.close()
             return cur.fetchone()
+

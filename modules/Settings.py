@@ -4,7 +4,7 @@ from modules.database import PostgresDB
 
 class Settings:
 
-    def __init__(self, file: str):
+    def __init__(self, file: str = ""):
         self.file = file
         self.settings = {}
         self.db = PostgresDB()
@@ -13,11 +13,11 @@ class Settings:
 
     def load_settings(self):
         try:
-            self.db.connect()
+
             settings = self.db.get_serialized("settings")
             if settings is not None:
                 self.settings = pickle.loads(settings[0])
-            self.db.close()
+
 
         except Exception as exc:
             logging.error(f"Error loading settings: {exc}")
@@ -28,9 +28,7 @@ class Settings:
             }
     def save_settings(self):
         try:
-            self.db.connect()
             self.db.insert_serialized("settings", pickle.dumps(self.settings))
-            self.db.close()
 
         except Exception as exc:
             logging.error(f"Error saving settings: {exc}")
