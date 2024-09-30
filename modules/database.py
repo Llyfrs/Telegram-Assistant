@@ -12,9 +12,7 @@ class PostgresDB:
         self.db_host = os.getenv('DB_HOST', 'localhost')
         self.db_port = os.getenv('DB_PORT', '5432')
 
-        # Connect to the database
         self.conn = None
-        self.connect()
 
     def connect(self):
         """Establish a connection to the PostgreSQL database."""
