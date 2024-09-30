@@ -168,8 +168,8 @@ if __name__ == '__main__':
     loop = asyncio.get_event_loop()
     loop.run_until_complete(load_commands())
 
-    torn = Torn()
-    application.create_task(torn.run(application.bot))
+    # torn = Torn()
+    # asyncio.create_task(torn.run)
 
     # model = "gpt-4-1106-preview"
     model = "gpt-4o-mini"
