@@ -5,6 +5,8 @@ import threading
 import logging
 from telegram.ext import ContextTypes
 
+from modules.database import PostgresDB
+
 
 class Reminder:
     def __init__(self, seconds: int, chat_id, reminder, bot):
@@ -43,10 +45,13 @@ class Reminders:
         self.reminder_data: list = []
         self.chat_id = None
         self.bot = bot
+        self.db = PostgresDB()
 
         try:
-            with open("reminders.pickle", "rb") as file:
-                temp = pickle.load(file)
+            self.db.connect()
+            temp = self.db.get_serialized("reminders")
+            temp = pickle.loads(temp[0])
+            self.db.close()
 
             for reminder in temp:
                 if reminder[0] - time.time() < 0:
@@ -64,8 +69,9 @@ class Reminders:
         self.reminders.append(rem)
         self.reminder_data.append((time.time() + seconds, reminder, self.chat_id))
 
-        with open("reminders.pickle", "wb") as file:
-            pickle.dump(self.reminder_data, file)
+        self.db.connect()
+        self.db.insert_serialized("reminders", pickle.dumps(self.reminder_data))
+        self.db.close()
 
         logging.info(f"[REMINDER] Reminder set for {convert_seconds_to_hms(seconds)} from now")
 
@@ -94,8 +100,9 @@ class Reminders:
             self.reminders.pop(index)
             self.reminder_data.pop(index)
 
-        with open("reminders.pickle", "wb") as file:
-            pickle.dump(self.reminder_data, file)
+        self.db.connect()
+        self.db.insert_serialized("reminders", pickle.dumps(self.reminder_data))
+        self.db.close()
 
         return "Reminders deleted"
 

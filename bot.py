@@ -17,12 +17,13 @@ from modules.wolfamalpha import calculate, settings
 from modules.files import load_file, save_file, delete_file, get_sections, get_section, list_files, save_section, \
     add_section, create_file
 
+
+logging.getLogger('httpx').setLevel(logging.ERROR)
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 
-logging.getLogger('httpx').setLevel(logging.ERROR)
 
 chat_id = None
 ct = None
