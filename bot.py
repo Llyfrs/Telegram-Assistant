@@ -93,12 +93,10 @@ async def clear_thread(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def assistant(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reminder.chat_id = update.effective_chat.id
 
-    settings: Settings = context.bot_data["settings"]
     client.add_message(update.message.text)
     steps = client.run_assistant()
 
-
-    if settings.get_setting("debug"):
+    if ValkeyDB().get_serialized("debug", False):
 
         cost = client.last_run_cost
         dollar_cost = costs[client.model] * cost.total_tokens
@@ -132,7 +130,7 @@ async def assistant(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for message in messages:
         for content in message.content:
             if content.type == "text":
-                await context.bot.send_message(chat_id=update.effective_chat.id, text=content.text.value)
+                await context.bot.send_message(chat_id=update.effective_chat.id, text=content.text.value, parse_mode="MarkdownV2")
 
             if content.type == "image_file":
                 content = client.client.files.content(file_id=content.image_file.file_id)
