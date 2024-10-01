@@ -16,7 +16,7 @@ class Torn:
         self.settings = Settings("settings")
         self.api_key = self.settings.get_setting("torn_api")
 
-    async def run (self, bot):
+    async def run (selft):
         while True:
             logging.info("Test")
             await asyncio.sleep(10)

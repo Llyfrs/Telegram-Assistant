@@ -5,7 +5,7 @@ import threading
 import logging
 from telegram.ext import ContextTypes
 
-from modules.database import PostgresDB
+from modules.database import ValkeyDB
 
 
 class Reminder:
@@ -45,11 +45,10 @@ class Reminders:
         self.reminder_data: list = []
         self.chat_id = None
         self.bot = bot
-        self.db = PostgresDB()
+        self.db = ValkeyDB()
 
         try:
             temp = self.db.get_serialized("reminders")
-            temp = pickle.loads(temp[0])
 
             for reminder in temp:
                 if reminder[0] - time.time() < 0:
@@ -67,7 +66,7 @@ class Reminders:
         self.reminders.append(rem)
         self.reminder_data.append((time.time() + seconds, reminder, self.chat_id))
 
-        self.db.insert_serialized("reminders", pickle.dumps(self.reminder_data))
+        self.db.insert_serialized("reminders", self.reminder_data)
 
         logging.info(f"[REMINDER] Reminder set for {convert_seconds_to_hms(seconds)} from now")
 
@@ -96,7 +95,7 @@ class Reminders:
             self.reminders.pop(index)
             self.reminder_data.pop(index)
 
-        self.db.insert_serialized("reminders", pickle.dumps(self.reminder_data))
+        self.db.insert_serialized("reminders", self.reminder_data)
 
         return "Reminders deleted"
 

@@ -5,6 +5,7 @@ import datetime
 import logging
 import os
 
+import pytz
 import telegram
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
@@ -19,7 +20,7 @@ from modules.files import load_file, save_file, delete_file, get_sections, get_s
     add_section, create_file
 
 
-
+logging.getLogger("httpx").setLevel(logging.ERROR)
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
@@ -87,7 +88,6 @@ async def assistant(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     settings: Settings = context.bot_data["settings"]
     client.add_message(update.message.text)
-
     steps = client.run_assistant()
 
 
@@ -133,8 +133,9 @@ async def assistant(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 def get_current_time():
-    # TODO: Show local time and don't show seconds as float
-    current_time_and_date = datetime.datetime.now()
+
+    cet = pytz.timezone('CET')
+    current_time_and_date = datetime.datetime.now(cet)
     current_time_and_date = current_time_and_date.strftime("%H:%M:%S %d/%m/%Y")
 
     print("Returning time: " + str(current_time_and_date))
@@ -150,6 +151,8 @@ async def load_commands():
         ("set_wolframalpha_app_id", "Sets WolframAlpha app id"),
         ("set_torn_api_key", "Sets Torn API key"),
     ])
+
+
 
 
 if __name__ == '__main__':
@@ -168,8 +171,8 @@ if __name__ == '__main__':
     loop = asyncio.get_event_loop()
     loop.run_until_complete(load_commands())
 
-    # torn = Torn()
-    # asyncio.create_task(torn.run)
+    torn = Torn()
+    asyncio.run_coroutine_threadsafe(torn.run(), loop)
 
     # model = "gpt-4-1106-preview"
     model = "gpt-4o-mini"

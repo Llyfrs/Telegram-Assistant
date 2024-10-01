@@ -1,13 +1,13 @@
 import logging
 import pickle
-from modules.database import PostgresDB
+from modules.database import ValkeyDB
 
 class Settings:
 
     def __init__(self, file: str = ""):
         self.file = file
         self.settings = {}
-        self.db = PostgresDB()
+        self.db = ValkeyDB()
         self.load_settings()
 
 
@@ -15,9 +15,6 @@ class Settings:
         try:
 
             settings = self.db.get_serialized("settings")
-            if settings is not None:
-                self.settings = pickle.loads(settings[0])
-
 
         except Exception as exc:
             logging.error(f"Error loading settings: {exc}")
@@ -28,7 +25,7 @@ class Settings:
             }
     def save_settings(self):
         try:
-            self.db.insert_serialized("settings", pickle.dumps(self.settings))
+            self.db.insert_serialized("settings", self.settings)
 
         except Exception as exc:
             logging.error(f"Error saving settings: {exc}")

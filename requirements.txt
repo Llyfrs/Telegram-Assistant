@@ -34,5 +34,6 @@ tqdm==4.66.1
 typing_extensions==4.11.0
 tzlocal==5.2
 urllib3==2.2.3
+valkey==6.0.2
 wolframalpha==5.0.0
 xmltodict==0.13.0
