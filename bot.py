@@ -130,7 +130,7 @@ async def assistant(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for message in messages:
         for content in message.content:
             if content.type == "text":
-                await context.bot.send_message(chat_id=update.effective_chat.id, text=content.text.value, parse_mode="MarkdownV2")
+                await context.bot.send_message(chat_id=update.effective_chat.id, text=content.text.value)
 
             if content.type == "image_file":
                 content = client.client.files.content(file_id=content.image_file.file_id)
