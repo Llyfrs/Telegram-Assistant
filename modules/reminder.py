@@ -66,7 +66,7 @@ class Reminders:
         self.reminders.append(rem)
         self.reminder_data.append((time.time() + seconds, reminder, self.chat_id))
 
-        self.db.insert_serialized("reminders", self.reminder_data)
+        self.db.set_serialized("reminders", self.reminder_data)
 
         logging.info(f"[REMINDER] Reminder set for {convert_seconds_to_hms(seconds)} from now")
 
@@ -95,7 +95,7 @@ class Reminders:
             self.reminders.pop(index)
             self.reminder_data.pop(index)
 
-        self.db.insert_serialized("reminders", self.reminder_data)
+        self.db.set_serialized("reminders", self.reminder_data)
 
         return "Reminders deleted"
 

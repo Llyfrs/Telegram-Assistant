@@ -1,8 +1,11 @@
 import asyncio
 import logging
+import schedule
 
 from modules.Settings import Settings
 import requests
+
+from modules.database import ValkeyDB
 
 
 def reqwest(url):
@@ -11,12 +14,13 @@ def reqwest(url):
 
 class Torn:
 
-    def __init__(self):
-        self.api_key = None
-        self.settings = Settings("settings")
-        self.api_key = self.settings.get_setting("torn_api")
+    def __init__(self, bot, api_key, chat_id):
+        self.api_key = api_key
+        self.bot = bot
+        self.chat_id = chat_id
 
     async def run (selft):
+
         while True:
             logging.info("Test")
             await asyncio.sleep(10)

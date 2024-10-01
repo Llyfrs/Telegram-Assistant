@@ -5,10 +5,13 @@ import datetime
 import logging
 import os
 
+
+
 import pytz
 import telegram
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
+from modules.database import ValkeyDB
 
 import openai_api
 from modules.Settings import Settings
@@ -26,10 +29,8 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-
 chat_id = None
 ct = None
-
 
 costs = {
     "gpt-4o": 0.00500 / 1000,
@@ -40,16 +41,16 @@ async def toggle_retrieval(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """ Toggles retrieval mode.
     This will enable the retrieval tool and switch mode to GPT4
     """
-    settings: Settings = context.bot_data["settings"]
-    settings.set_setting("retrieval", not settings.get_setting("retrieval"))
-    await update.message.reply_text(f"Retrieval is now {settings.get_setting('retrieval')}")
+    db = ValkeyDB()
+    db.set_serialized("retrieval", not db.get_serialized("retrieval", False))
+    await update.message.reply_text(f"Retrieval is now: {db.get_serialized('retrieval')}")
 
 
 async def toggle_debug(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """ Toggles debug mode """
-    settings: Settings = context.bot_data["settings"]
-    settings.set_setting("debug", not settings.get_setting("debug"))
-    await update.message.reply_text(f"Debug is now {settings.get_setting('debug')}")
+    db = ValkeyDB()
+    db.set_serialized("debug", not db.get_serialized("debug", False))
+    await update.message.reply_text(f"Debug is now: {db.get_serialized('debug')}")
 
 
 async def toggle_model(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -58,8 +59,6 @@ async def toggle_model(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         client.set_model("gpt-4o")
 
-    settings: Settings = context.bot_data["settings"]
-    settings.set_setting("model", client.model)
     await update.message.reply_text(f"Model is now {client.model}")
 
 
@@ -71,9 +70,17 @@ async def set_wolframalpha_app_id(update: Update, context: ContextTypes.DEFAULT_
 
 
 async def set_torn_api_key(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """ Sets Torn API key """
-    settings: Settings = context.bot_data["settings"]
-    settings.set_setting("torn_api_key", update.message.text.split(" ")[1])
+    """ Sets Torn API key and resets already running torn instance so only one is running"""
+    db = ValkeyDB()
+    db.set_serialized("torn_api_key", update.message.text.split(" ")[1])
+    db.set_serialized("chat_id", update.message.chat.id)
+
+    torn = context.bot_data["torn"]
+    torn.cancel()
+
+    torn = Torn(application.bot, ValkeyDB().get_serialized("torn_api_key", ""), ValkeyDB().get_serialized("chat_id"))
+    torn = asyncio.run_coroutine_threadsafe(torn.run(), loop)
+
     await update.message.reply_text(f"Torn API key set")
 
 
@@ -153,8 +160,6 @@ async def load_commands():
     ])
 
 
-
-
 if __name__ == '__main__':
     application = ApplicationBuilder().token(os.environ.get("TELEGRAM_KEY")).pool_timeout(10).build()
 
@@ -171,8 +176,10 @@ if __name__ == '__main__':
     loop = asyncio.get_event_loop()
     loop.run_until_complete(load_commands())
 
-    torn = Torn()
-    asyncio.run_coroutine_threadsafe(torn.run(), loop)
+    torn = Torn(application.bot, ValkeyDB().get_serialized("torn_api_key", ""), ValkeyDB().get_serialized("chat_id"))
+    torn = asyncio.run_coroutine_threadsafe(torn.run(), loop)
+
+    application.bot_data["torn"] = torn
 
     # model = "gpt-4-1106-preview"
     model = "gpt-4o-mini"

@@ -25,7 +25,7 @@ class Settings:
             }
     def save_settings(self):
         try:
-            self.db.insert_serialized("settings", self.settings)
+            self.db.set_serialized("settings", self.settings)
 
         except Exception as exc:
             logging.error(f"Error saving settings: {exc}")
