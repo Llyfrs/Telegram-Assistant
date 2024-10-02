@@ -33,15 +33,20 @@ class Torn:
 
     import re
 
-    def convert_to_markdown(self, html_text):
-        # Regular expression to capture everything inside href and link text
-        pattern = r'<a href\s*=\s*["\'](.*?)["\']>(.*?)</a>'
+    def convert_to_markdown(self, input_string):
+        # Regex to match <a href> tags
+        pattern = r'<a href\s*=\s*http://www\.torn\.com/"(.*?)">(.*?)</a>'
 
-        # Replace the HTML anchor tag with markdown link format
-        markdown_text = re.sub(pattern, r'[\2](\1)', html_text)
+        # Function to replace match with markdown
+        def replace_link(match):
+            url = match.group(1)
+            text = match.group(2)
+            return f'[{text}]({url})'
 
-        return markdown_text
+        # Replace all <a href> tags with markdown links
+        markdown_string = re.sub(pattern, replace_link, input_string)
 
+        return markdown_string
 
     async def get(self, url):
         response = requests.get(url).json()
