@@ -9,6 +9,7 @@ import os
 
 import pytz
 import telegram
+import telegramify_markdown
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
 from modules.database import ValkeyDB
@@ -130,7 +131,9 @@ async def assistant(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for message in messages:
         for content in message.content:
             if content.type == "text":
-                await context.bot.send_message(chat_id=update.effective_chat.id, text=content.text.value)
+
+
+                await context.bot.send_message(chat_id=update.effective_chat.id, text=telegramify_markdown.markdownify(content.text.value), parse_mode="MarkdownV2")
 
             if content.type == "image_file":
                 content = client.client.files.content(file_id=content.image_file.file_id)
