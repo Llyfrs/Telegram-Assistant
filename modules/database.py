@@ -1,11 +1,7 @@
 import logging
 import os
-from mailcap import lookup
-
 import valkey
 import pickle
-
-from valkey import Valkey
 
 
 class ValkeyDB:
