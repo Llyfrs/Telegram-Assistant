@@ -42,11 +42,6 @@ class Torn:
 
         return markdown_text
 
-    # Example usage
-    html_string = '<a href = http://www.torn.com/"http://www.torn.com/profiles.php?XID=2531272">Llyfr</a> gave $1 to you from <a href = http://www.torn.com/"http://www.torn.com/factions.php?step=profile&ID=36891">FLATLINE</a>'
-    markdown_string = convert_to_markdown(html_string)
-
-    print(markdown_string)
 
     async def get(self, url):
         response = requests.get(url).json()
