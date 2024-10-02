@@ -4,19 +4,19 @@ import asyncio
 import datetime
 import logging
 import os
-
-
+import time
 
 import pytz
 import telegram
 import telegramify_markdown
-from telegram import Update
+from anyio import current_time
+from telegram import Update, Message
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
 from modules.database import ValkeyDB
 
 import openai_api
 from modules.Settings import Settings
-from modules.reminder import Reminders, calculate_seconds
+from modules.reminder import Reminders, calculate_seconds, convert_seconds_to_hms
 from modules.tools import debug
 from modules.torn import Torn
 from modules.wolfamalpha import calculate, settings
@@ -89,6 +89,20 @@ async def clear_thread(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """ Clears the thread """
     client.clear_thread()
     await update.message.reply_text(f"Thread cleared")
+
+
+async def live_message( update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """ Live message """
+    message : Message = await update.message.reply_text("Live message")
+
+    async def timer():
+        start = time.time()
+        while True:
+            await message.edit_text(convert_seconds_to_hms(round(time.time() - start)))
+            await asyncio.sleep(1)
+
+    loop = asyncio.get_running_loop()
+    asyncio.run_coroutine_threadsafe(timer(), loop)
 
 
 async def assistant(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -173,6 +187,7 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler("toggle_model", toggle_model))
     application.add_handler(CommandHandler("set_wolframalpha_app_id", set_wolframalpha_app_id))
     application.add_handler(CommandHandler("set_torn_api_key", set_torn_api_key))
+    application.add_handler(CommandHandler("live_message", live_message))
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(load_commands())
