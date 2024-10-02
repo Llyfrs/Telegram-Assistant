@@ -31,12 +31,22 @@ class Torn:
         text = telegramify_markdown.markdownify(text)
         await self.bot.send_message(chat_id=self.chat_id, text=text, parse_mode="MarkdownV2")
 
+    import re
+
     def convert_to_markdown(self, html_text):
-        # Regular expression to capture <a href=...>link_text</a>
-        pattern = r'<a href = http://www\.torn\.com/"(.*?)">(.*?)</a>'
+        # Regular expression to capture everything inside href and link text
+        pattern = r'<a href\s*=\s*["\'](.*?)["\']>(.*?)</a>'
+
         # Replace the HTML anchor tag with markdown link format
         markdown_text = re.sub(pattern, r'[\2](\1)', html_text)
+
         return markdown_text
+
+    # Example usage
+    html_string = '<a href = http://www.torn.com/"http://www.torn.com/profiles.php?XID=2531272">Llyfr</a> gave $1 to you from <a href = http://www.torn.com/"http://www.torn.com/factions.php?step=profile&ID=36891">FLATLINE</a>'
+    markdown_string = convert_to_markdown(html_string)
+
+    print(markdown_string)
 
     async def get(self, url):
         response = requests.get(url).json()
