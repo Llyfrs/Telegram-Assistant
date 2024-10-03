@@ -108,7 +108,17 @@ async def live_message( update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def assistant(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reminder.chat_id = update.effective_chat.id
 
-    client.add_message( f"{get_current_time()}: {update.message.text}")
+
+    photos = []
+    photo = update.message.photo
+    for p in photo:
+        photo = await context.bot.get_file(p.file_id)
+        photos.append(photo.file_path)
+
+
+    ## Looks like it duplicates the photos, this should make sure it doesn't do that anymore
+    photos = set(photos)
+    client.add_message( f"{get_current_time()}: {update.message.text}", photos)
 
     steps = client.run_assistant()
 
@@ -179,7 +189,7 @@ if __name__ == '__main__':
 
     application.bot_data["settings"] = Settings("settings.pickle")
 
-    application.add_handler(MessageHandler(filters.TEXT & filters.PHOTO & ~filters.COMMAND, assistant))
+    application.add_handler(MessageHandler((filters.TEXT | filters.PHOTO) & ~filters.COMMAND, assistant))
     application.add_handler(CommandHandler("toggle_retrieval", toggle_retrieval))
     application.add_handler(CommandHandler("toggle_debug", toggle_debug))
     application.add_handler(CommandHandler("clear_thread", clear_thread))

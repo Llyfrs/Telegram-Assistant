@@ -7,6 +7,8 @@ from pyexpat.errors import messages
 
 import schedule
 import requests
+import telegram
+import inspect
 
 import telegramify_markdown
 
@@ -17,11 +19,27 @@ def reqwest(url):
     return requests.get(url).json()
 
 
+def convert_to_markdown(input_string):
+    # Regex to match <a href> tags
+    pattern = r'<a href\s*=\s*http://www\.torn\.com/"(.*?)">(.*?)</a>'
+
+    # Function to replace match with markdown
+    def replace_link(match):
+        url = match.group(1)
+        text = match.group(2)
+        return f'[{text}]({url})'
+
+    # Replace all <a href> tags with markdown links
+    markdown_string = re.sub(pattern, replace_link, input_string)
+
+    return markdown_string
+
+
 class Torn:
 
     def __init__(self, bot , api_key, chat_id):
         self.api_key = api_key
-        self.bot : Bot = bot
+        self.bot : telegram.Bot = bot
         self.chat_id = chat_id
         self.running = True
         self.user = None
@@ -30,24 +48,12 @@ class Torn:
 
     async def send(self, text):
         text = telegramify_markdown.markdownify(text)
-        await self.bot.send_message(chat_id=self.chat_id, text=text, parse_mode="MarkdownV2")
+        message = await self.bot.send_message(chat_id=self.chat_id, text=text, parse_mode="MarkdownV2")
 
-    import re
-
-    def convert_to_markdown(self, input_string):
-        # Regex to match <a href> tags
-        pattern = r'<a href\s*=\s*http://www\.torn\.com/"(.*?)">(.*?)</a>'
-
-        # Function to replace match with markdown
-        def replace_link(match):
-            url = match.group(1)
-            text = match.group(2)
-            return f'[{text}]({url})'
-
-        # Replace all <a href> tags with markdown links
-        markdown_string = re.sub(pattern, replace_link, input_string)
-
-        return markdown_string
+        ## Wild stuff this is, but it makes sure the bot cleans up after itself, at the same time it sends new message
+        if inspect.stack()[1].function in self.last_messages:
+            await self.bot.delete_message(chat_id=self.chat_id, message_id=self.last_messages[inspect.stack()[1].function].message_id)
+        self.last_messages[inspect.stack()[1].function] = message
 
     async def get(self, url):
         response = requests.get(url).json()
@@ -87,8 +93,8 @@ class Torn:
             if cooldowns.get("drug") == 0:
                 message += "\n >Take Xanax 💊 [here](https://www.torn.com/item.php#drugs-items)"
 
-            if cooldowns.get("medical") == 0:
-                message += "\n > Use blood bag 💉 [here](https://www.torn.com/factions.php?step=your&type=1#/tab=armoury&start=0&sub=medical)"
+            #if cooldowns.get("medical") == 0: # I mean I could turn it on but I don't want
+                #message += "\n > Use blood bag 💉 [here](https://www.torn.com/factions.php?step=your&type=1#/tab=armoury&start=0&sub=medical)"
 
             if cooldowns.get("booster") == 0:
                 message += "\n > Use boosters 🍺 [here](https://www.torn.com/factions.php?step=your&type=1#/tab=armoury&start=0&sub=boosters)"
@@ -130,7 +136,7 @@ class Torn:
         for event_id in newevents:
             if newevents[event_id].get("timestamp") > self.oldest_event:
                 self.oldest_event = newevents[event_id].get("timestamp")
-                await self.send(self.convert_to_markdown(newevents[event_id].get("event")))
+                await self.send(convert_to_markdown(newevents[event_id].get("event")))
 
     async def bars(self):
         energy = self.user.get("energy")
@@ -156,7 +162,6 @@ class Torn:
 
         if message != head:
             await self.send(message)
-
 
 
     async def run (self):

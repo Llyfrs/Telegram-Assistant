@@ -3,6 +3,8 @@ import time
 
 import openai
 from openai.types.beta import Thread
+from openai.types.beta.threads import ImageFileContentBlock, TextContentBlock, TextContentBlockParam, \
+    ImageFileContentBlockParam, ImageURLContentBlockParam, ImageURLParam
 
 from functions import Functions
 
@@ -49,16 +51,21 @@ class OpenAI_API:
         )
 
     # adds message to the conversation but does not invoke AI to respond for that you need to call run()
-    def add_message(self, message: str):
+    def add_message(self, message: str, photos = None):
 
         """This is to protect my self from spending to much"""
         if self.model == "gpt-4o":
             self.clear_thread()
 
+        content = [TextContentBlockParam(text=message, type="text")]
+
+        for photo in photos:
+            content.append(ImageURLContentBlockParam(image_url=ImageURLParam(url=photo, detail="low"), type="image_url"))
+
         message = self.client.beta.threads.messages.create(
             thread_id=self.thread.id,
             role="user",
-            content=message
+            content=content
         )
 
 
