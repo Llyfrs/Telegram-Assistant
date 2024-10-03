@@ -108,7 +108,8 @@ async def live_message( update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def assistant(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reminder.chat_id = update.effective_chat.id
 
-    client.add_message(update.message.text)
+    client.add_message( f"{get_current_time()}: {update.message.text}")
+
     steps = client.run_assistant()
 
     if ValkeyDB().get_serialized("debug", False):
@@ -121,7 +122,6 @@ async def assistant(update: Update, context: ContextTypes.DEFAULT_TYPE):
             long_time_cost = 0
 
         settings.set_setting("cost", long_time_cost + dollar_cost)
-
 
         await context.bot.send_message(chat_id=update.effective_chat.id, text=f"{cost.total_tokens} tokens used for price of ${round(dollar_cost,5)}")
         await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Total cost: ${round(long_time_cost + dollar_cost, 5)}")
@@ -145,7 +145,6 @@ async def assistant(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for message in messages:
         for content in message.content:
             if content.type == "text":
-
 
                 await context.bot.send_message(chat_id=update.effective_chat.id, text=telegramify_markdown.markdownify(content.text.value), parse_mode="MarkdownV2")
 
@@ -180,7 +179,7 @@ if __name__ == '__main__':
 
     application.bot_data["settings"] = Settings("settings.pickle")
 
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, assistant))
+    application.add_handler(MessageHandler(filters.TEXT & filters.PHOTO & ~filters.COMMAND, assistant))
     application.add_handler(CommandHandler("toggle_retrieval", toggle_retrieval))
     application.add_handler(CommandHandler("toggle_debug", toggle_debug))
     application.add_handler(CommandHandler("clear_thread", clear_thread))

@@ -21,11 +21,12 @@ class Torn:
 
     def __init__(self, bot , api_key, chat_id):
         self.api_key = api_key
-        self.bot = bot
+        self.bot : Bot = bot
         self.chat_id = chat_id
         self.running = True
         self.user = None
         self.oldest_event = 0
+        self.last_messages= {}
 
     async def send(self, text):
         text = telegramify_markdown.markdownify(text)
@@ -54,7 +55,7 @@ class Torn:
         while response.get("error") is not None:
 
             await self.send(response.get("error").get("error"))
-            if response.get("error").get("code") == 5:
+            if response.get("error").get("code") != 5:
                 break
 
             response = requests.get(url).json()
