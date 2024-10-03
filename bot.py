@@ -16,7 +16,7 @@ from modules.database import ValkeyDB
 
 import openai_api
 from modules.Settings import Settings
-from modules.reminder import Reminders, calculate_seconds, convert_seconds_to_hms
+from modules.reminder import Reminders, calculate_seconds, convert_seconds_to_hms, seconds_until
 from modules.tools import debug
 from modules.torn import Torn
 from modules.wolfamalpha import calculate, settings
@@ -203,11 +203,11 @@ if __name__ == '__main__':
 
     reminder = Reminders(application.bot)
     client.add_function(get_current_time, "get_current_time", "Returns the current time")
+    client.add_function(seconds_until, "seconds_until", "Returns seconds until date in format %Y-%m-%d %H:%M:%S")
     client.add_function(calculate, "calculate",
                         "Calculates math expression using wolframalpha. Can also calculate dates for example")
-    client.add_function(calculate_seconds, "calculate_seconds",
-                        "Calculates seconds from days, hours, minutes and seconds. Use to get seconds for reminder. "
-                        "Does not tell time until.")
+    client.add_function(calculate_seconds, "convert_to_seconds",
+                        "Converts days, hours, minutes and seconds to just seconds")
     client.add_function(reminder.add_reminder, "add_reminder",
                         "Creates reminder that will be send to user after specified time. t"
                         "he time does not accumulate with ever function call.")
@@ -223,6 +223,8 @@ if __name__ == '__main__':
     client.add_function(save_section, "save_section", "Saves section to markdown file, (Overrides the existing one)")
     client.add_function(add_section, "add_section", "Adds section to markdown file at its end")
     client.add_function(create_file, "create_file", "Creates file in files directory")
+
+
 
     client.create()
 

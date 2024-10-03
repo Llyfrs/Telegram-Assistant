@@ -1,8 +1,11 @@
 import asyncio
+import datetime
 import pickle
 import time
 import threading
 import logging
+
+import pytz
 from telegram.ext import ContextTypes
 
 from modules.database import ValkeyDB
@@ -38,6 +41,27 @@ def convert_seconds_to_hms(seconds: int):
 
 def calculate_seconds(days: int = 0, hours: int = 0, minutes: int = 0, seconds: int = 0):
     return days * 86400 + hours * 3600 + minutes * 60 + seconds
+
+
+def seconds_until(target_date_str):
+    # Define Prague time zone
+    prague_tz = pytz.timezone('cet')
+
+    # Get the current time in Prague
+    now = datetime.datetime.now(prague_tz)
+
+    # Parse the target date string and localize it to Prague time zone
+    target_date = prague_tz.localize(datetime.datetime.strptime(target_date_str, '%Y-%m-%d %H:%M:%S'))
+
+    # Calculate the time difference
+    time_difference = target_date - now
+
+    print(f"Target date: {target_date}")
+    print(f"Now: {now}")
+    print(f"Time difference: {time_difference}")
+
+    # Return the total seconds remaining
+    return int(time_difference.total_seconds())
 
 class Reminders:
     def __init__(self, bot):
