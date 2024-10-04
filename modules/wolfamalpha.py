@@ -1,18 +1,13 @@
 from modules.Settings import Settings
 import wolframalpha
 
-settings = Settings("settings.pickle")
+from modules.database import ValkeyDB
 
 
 def calculate(expression):
     """Calculates the given expression using WolframAlpha's API."""
-    global settings
-    app_id = settings.get_setting("wolframalpha_app_id")
 
-    if app_id is None:
-        settings = Settings("settings.pickle")
-
-    app_id = settings.get_setting("wolframalpha_app_id")
+    app_id = ValkeyDB().get_serialized("wolframalpha_app_id")
 
     if app_id is None:
         return "WolframAlpha app id not set"

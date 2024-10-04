@@ -19,7 +19,7 @@ from modules.Settings import Settings
 from modules.reminder import Reminders, calculate_seconds, convert_seconds_to_hms, seconds_until
 from modules.tools import debug
 from modules.torn import Torn
-from modules.wolfamalpha import calculate, settings
+from modules.wolfamalpha import calculate
 from modules.files import load_file, save_file, delete_file, get_sections, get_section, list_files, save_section, \
     add_section, create_file
 
@@ -65,9 +65,9 @@ async def toggle_model(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def set_wolframalpha_app_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """ Sets WolframAlpha app id """
-    settings: Settings = context.bot_data["settings"]
-    settings.set_setting("wolframalpha_app_id", update.message.text.split(" ")[1])
-    await update.message.reply_text(f"WolframAlpha app id set to {settings.get_setting('wolframalpha_app_id')}")
+    db = ValkeyDB()
+    db.set_serialized("wolframalpha_app_id", update.message.text.split(" ")[1])
+    await update.message.reply_text(f"WolframAlpha app id set")
 
 
 async def set_torn_api_key(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -122,23 +122,25 @@ async def assistant(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     steps = client.run_assistant()
 
-    if ValkeyDB().get_serialized("debug", False):
+    db = ValkeyDB()
+
+    if db.get_serialized("debug", False):
 
         cost = client.last_run_cost
         dollar_cost = costs[client.model] * cost.total_tokens
 
-        long_time_cost = settings.get_setting("cost")
+        long_time_cost = db.get_serialized("cost", 0)
         if long_time_cost is None:
             long_time_cost = 0
 
-        settings.set_setting("cost", long_time_cost + dollar_cost)
+        db.set_serialized("cost", long_time_cost + dollar_cost)
 
         await context.bot.send_message(chat_id=update.effective_chat.id, text=f"{cost.total_tokens} tokens used for price of ${round(dollar_cost,5)}")
         await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Total cost: ${round(long_time_cost + dollar_cost, 5)}")
 
         for dbg_msg in debug(steps):
 
-            print(dbg_msg)
+            logging.info(dbg_msg)
             # TODO this need to be fixed ffs it's so ugly
             if dbg_msg == "":
                 continue

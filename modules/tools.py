@@ -29,7 +29,6 @@ def debug(steps):
     data.reverse()
 
     for step in data:
-        print(f"Step: {step}")
 
         if step.type == "message_creation":
             continue

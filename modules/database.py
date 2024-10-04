@@ -1,11 +1,13 @@
 import logging
 import os
+from nis import match
+
 import valkey
 import pickle
 
 
 class ValkeyDB:
-    valkey_client = None
+    valkey_client : valkey.Valkey = None
     def __init__(self):
         valkey_uri = os.getenv("VALKEY_URI")
         if ValkeyDB.valkey_client is None:
@@ -44,3 +46,15 @@ class ValkeyDB:
             logging.error(f'Failed deserialization {ex}, returning default {default}')
             return default
 
+    def delete(self, key: str):
+        self.valkey_client.delete(key)
+        if key in self.cache:
+            del self.cache[key]
+
+    def list(self, prefix: str):
+
+        keys = []
+        for key in self.valkey_client.scan(match = prefix + "*")[1]:
+            keys.append(key.decode("utf-8"))
+
+        return keys

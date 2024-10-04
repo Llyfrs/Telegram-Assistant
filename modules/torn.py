@@ -46,12 +46,12 @@ class Torn:
         self.oldest_event = 0
         self.last_messages= {}
 
-    async def send(self, text):
+    async def send(self, text, clean = True):
         text = telegramify_markdown.markdownify(text)
         message = await self.bot.send_message(chat_id=self.chat_id, text=text, parse_mode="MarkdownV2")
 
         ## Wild stuff this is, but it makes sure the bot cleans up after itself, at the same time it sends new message
-        if inspect.stack()[1].function in self.last_messages:
+        if inspect.stack()[1].function in self.last_messages and clean:
             await self.bot.delete_message(chat_id=self.chat_id, message_id=self.last_messages[inspect.stack()[1].function].message_id)
         self.last_messages[inspect.stack()[1].function] = message
 
@@ -122,6 +122,8 @@ class Torn:
             try:
                 if 600 > hospital_end > 0:
                     message = f"You have your bazaar open and will be leaving hospital in `{convert_seconds_to_hms(round(hospital_end))}`!!! "
+                else:
+                    return # No need to send message if it's not close to the end
             except Exception as e:
                 logging.error(f"Failed to check hospital time: {e}")
 
@@ -136,7 +138,7 @@ class Torn:
         for event_id in newevents:
             if newevents[event_id].get("timestamp") > self.oldest_event:
                 self.oldest_event = newevents[event_id].get("timestamp")
-                await self.send(convert_to_markdown(newevents[event_id].get("event")))
+                await self.send(convert_to_markdown(newevents[event_id].get("event")), clean=False)
 
     async def bars(self):
         energy = self.user.get("energy")

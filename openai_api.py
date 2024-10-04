@@ -30,7 +30,10 @@ class OpenAI_API:
             name="Personal Assistant",
             description="TelegramBot Assistant",
             instructions="You are the users personal telegram bot assistant. User does "
-                         "not see what you are putting in to functions or their output.\n",
+                         "not see what you are putting in to functions or their output.\n"
+                         "You are really bad at math so don't try to do any yourself, use the calculate function instead.\n"
+                         "Every time you create reminder you have to first either use the convert_to_seconds or seconds_until functions. "
+                         "Do not input your own numbers in to it\n",
             model=self.model,
             tools=tools
         )
