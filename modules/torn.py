@@ -9,6 +9,7 @@ import schedule
 import requests
 import telegram
 import inspect
+import subprocess
 
 import telegramify_markdown
 
@@ -19,20 +20,10 @@ def reqwest(url):
     return requests.get(url).json()
 
 
-def convert_to_markdown(input_string):
-    # Regex to match <a href> tags
-    pattern = r'<a href\s*=\s*http://www\.torn\.com/"(.*?)">(.*?)</a>'
+def remove_between_angle_brackets(text):
+    cleaned_text = re.sub(r'<.*?>', '', text)  # Remove text between < and >
+    return re.sub(r'\s+', ' ', cleaned_text).strip()  # Replace multiple spaces with a single space and strip extra spaces
 
-    # Function to replace match with markdown
-    def replace_link(match):
-        url = match.group(1)
-        text = match.group(2)
-        return f'[{text}]({url})'
-
-    # Replace all <a href> tags with markdown links
-    markdown_string = re.sub(pattern, replace_link, input_string)
-
-    return markdown_string
 
 
 class Torn:
@@ -45,6 +36,21 @@ class Torn:
         self.user = None
         self.oldest_event = 0
         self.last_messages= {}
+
+    async def cancel(self):
+        self.running = False
+
+    async def send_html(self, text):
+        try:
+            return await self.bot.send_message(chat_id=self.chat_id, text=text, parse_mode="html")
+        except Exception as e:
+            logging.error(f"Failed to send html message: {e} in message: {text}")
+
+    async def clear(self):
+        caller = inspect.stack()[1].function
+        if caller in self.last_messages:
+            await self.bot.delete_message(chat_id=self.chat_id, message_id=self.last_messages[caller].message_id)
+            self.last_messages.pop(caller)
 
     async def send(self, text, clean = True):
         text = telegramify_markdown.markdownify(text)
@@ -101,10 +107,13 @@ class Torn:
 
         if message != "*Cooldown Alarms*:":
             await self.send(message)
+        else:
+            await self.clear()
 
     async def bazaar_alert(self):
 
         if "icon35" not in self.user.get("basicicons"):
+            await self.clear()
             return
 
 
@@ -138,7 +147,7 @@ class Torn:
         for event_id in newevents:
             if newevents[event_id].get("timestamp") > self.oldest_event:
                 self.oldest_event = newevents[event_id].get("timestamp")
-                await self.send(convert_to_markdown(newevents[event_id].get("event")), clean=False)
+                await self.send(remove_between_angle_brackets(newevents[event_id].get("event")), clean=False)
 
     async def bars(self):
         energy = self.user.get("energy")
@@ -164,6 +173,20 @@ class Torn:
 
         if message != head:
             await self.send(message)
+        else:
+            await self.clear()
+
+
+    ## Small calculator for company stock that I wrote in rust and didn't feel like rewriting it when I can just import the binary
+    async def stock(self):
+        try:
+            result = subprocess.run(["modules/stock_calculator"] + [self.api_key], stdout=subprocess.PIPE)
+            result = result.stdout.decode("utf-8")
+        except Exception as e:
+            logging.error(f"Failed to get stock data: {e}")
+            return
+
+        await self.send(result)
 
 
     async def run (self):

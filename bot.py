@@ -38,6 +38,7 @@ costs = {
     "gpt-4o-mini": 0.000150 / 1000,
 }
 
+
 async def toggle_retrieval(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """ Toggles retrieval mode.
     This will enable the retrieval tool and switch mode to GPT4
@@ -80,9 +81,13 @@ async def set_torn_api_key(update: Update, context: ContextTypes.DEFAULT_TYPE):
     torn.cancel()
 
     torn = Torn(application.bot, ValkeyDB().get_serialized("torn_api_key", ""), ValkeyDB().get_serialized("chat_id"))
-    torn = asyncio.run_coroutine_threadsafe(torn.run(), loop)
+    asyncio.run_coroutine_threadsafe(torn.run(), loop)
 
     await update.message.reply_text(f"Torn API key set")
+
+async def stock(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    torn = context.bot_data["torn"]
+    await torn.stock()
 
 
 async def clear_thread(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -103,6 +108,7 @@ async def live_message( update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     loop = asyncio.get_running_loop()
     asyncio.run_coroutine_threadsafe(timer(), loop)
+
 
 
 async def assistant(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -183,6 +189,8 @@ async def load_commands():
         ("toggle_model", "Toggles model between GPT4 and GPT4o-mini"),
         ("set_wolframalpha_app_id", "Sets WolframAlpha app id"),
         ("set_torn_api_key", "Sets Torn API key"),
+        ("live_message", "Live message"),
+        ("stock", "Stock")
     ])
 
 
@@ -199,14 +207,15 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler("set_wolframalpha_app_id", set_wolframalpha_app_id))
     application.add_handler(CommandHandler("set_torn_api_key", set_torn_api_key))
     application.add_handler(CommandHandler("live_message", live_message))
+    application.add_handler(CommandHandler("stock", stock))
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(load_commands())
 
-    torn = Torn(application.bot, ValkeyDB().get_serialized("torn_api_key", ""), ValkeyDB().get_serialized("chat_id"))
-    torn = asyncio.run_coroutine_threadsafe(torn.run(), loop)
+    t = Torn(application.bot, ValkeyDB().get_serialized("torn_api_key", ""), ValkeyDB().get_serialized("chat_id"))
+    asyncio.run_coroutine_threadsafe(t.run(), loop)
 
-    application.bot_data["torn"] = torn
+    application.bot_data["torn"] = t
 
     # model = "gpt-4-1106-preview"
     model = "gpt-4o-mini"
