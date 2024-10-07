@@ -192,7 +192,7 @@ class Torn:
 
     async def bazaar_alert(self):
 
-        if "icon35" not in self.user.get("basicicons"):
+        if self.user.get("basicicons").get("icon35") is None:
             await self.clear()
             return
 
@@ -330,7 +330,9 @@ class Torn:
                     ids.append(bounty.get("target_id"))
 
 
-                    ## Since I'm caching the bts, it's better to call it first to save on API calls
+                    ## Since I'm caching the bts, it'
+                    #
+                    # s better to call it first to save on API calls
                     bts = await self.get_bts(bounty.get("target_id"))
 
                     if bts.get("TBS") > my_bts * 1.1:
