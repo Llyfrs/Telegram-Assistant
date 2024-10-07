@@ -2,8 +2,9 @@ import asyncio
 import logging
 import re
 import time
+from pyexpat.errors import messages
 
-
+import pytz
 import schedule
 import requests
 import telegram
@@ -12,6 +13,7 @@ import subprocess
 
 import telegramify_markdown
 
+from modules.database import ValkeyDB
 from modules.reminder import convert_seconds_to_hms
 
 
@@ -33,6 +35,7 @@ class Torn:
         self.chat_id = chat_id
         self.running = True
         self.user = None
+        self.company = None
         self.oldest_event = 0
         self.last_messages= {}
         self.is_stacking = False
@@ -91,6 +94,9 @@ class Torn:
         url = f"https://api.torn.com/user/?selections=profile,cooldowns,newevents,bars&key={self.api_key}"
         return await self.get(url)
 
+    async def get_company(self):
+        url = f"https://api.torn.com/company/?selections=employees,detailed,stock&key={self.api_key}"
+        return await self.get(url)
 
     async def update_user(self):
         try :
@@ -98,6 +104,12 @@ class Torn:
         except Exception as e:
             logging.error(f"Failed to get user data: {e}")
             return
+
+    async def update_company(self):
+        try:
+            self.company = await self.get_company()
+        except Exception as e:
+            logging.error(f"Failed to get company data: {e}")
 
     async def cooldowns(self):
         cooldowns = self.user.get("cooldowns")
@@ -201,9 +213,47 @@ class Torn:
         await self.send(result)
 
 
+    async def trains(self):
+        try:
+            if self.company.get("company_detailed").get("trains_available") == 0:
+                messages = "You have no trains available, you can't train anyone"
+                logging.info("No trains available")
+            else:
+                employees = self.company.get("company_employees")
+                order : list = ValkeyDB().get_serialized("last_employee_trained", [])
+
+                for id in employees:
+                    if employees[id].get("wage") > 0:
+                        if id not in order:
+                            order.append(id)
+
+
+                order.append(order.pop(0))
+                ValkeyDB().set_serialized("last_employee_trained", order)
+
+
+
+                wage = employees[order[0]].get("wage")
+                trains = self.company.get("company_detailed").get("trains_available")
+
+                messages = (f"You have *{trains} trains* available and your next employee to train is *{employees[order[0]].get('name')}* "
+                            f"you can update their wage to *{wage - trains}* when you finish. [Quick link](https://www.torn.com/companies.php?step=your&type=1)")
+
+                logging.info(f"Trains available: {trains}, next employee: {employees[order[0]].get('name')}")
+
+        except Exception as e:
+            logging.error(f"Failed to get train data: {e}")
+            return
+
+
+        await self.send(messages)
+
+
+
     async def run (self):
 
         logging.info("Torn is up and running")
+        cet = pytz.timezone('CET')
 
         loop = asyncio.get_event_loop()
         schedule.every(30).seconds.do(lambda : asyncio.run_coroutine_threadsafe(self.update_user(), loop))
@@ -211,7 +261,12 @@ class Torn:
         schedule.every(10).seconds.do(lambda : asyncio.run_coroutine_threadsafe(self.bazaar_alert(), loop))
         schedule.every(15).minutes.do(lambda : asyncio.run_coroutine_threadsafe(self.bars(), loop))
         schedule.every(5).minutes.do(lambda : asyncio.run_coroutine_threadsafe(self.cooldowns(), loop))
+        schedule.every().day.at("17:59", cet).do(lambda: asyncio.run_coroutine_threadsafe(self.update_company(), loop))
+
         schedule.run_all()
+
+        schedule.every().day.at("18:00", cet).do(lambda : asyncio.run_coroutine_threadsafe(self.stock(), loop))
+        schedule.every().day.at("18:00", cet).do(lambda: asyncio.run_coroutine_threadsafe(self.trains(), loop))
 
         while self.running:
             schedule.run_pending()
