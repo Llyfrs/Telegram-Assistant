@@ -5,6 +5,7 @@ import datetime
 import logging
 import os
 import time
+from asyncio import Future
 
 import pytz
 import telegram
@@ -124,6 +125,27 @@ async def live_message( update: Update, context: ContextTypes.DEFAULT_TYPE):
     loop = asyncio.get_running_loop()
     asyncio.run_coroutine_threadsafe(timer(), loop)
 
+async def bounty(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """ Bounty """
+
+    try:
+
+        bt : Future = context.bot_data.get("bounty", None)
+
+        if bt is not None:
+            bt.cancel()
+            context.bot_data["bounty"] = None
+            await update.message.reply_text("Bounty Monitor Stoped")
+            return
+
+        torn = context.bot_data["torn"]
+        loop = asyncio.get_running_loop()
+        bt = asyncio.run_coroutine_threadsafe(torn.bounty_monitor(), loop)
+        context.bot_data["bounty"] = bt
+
+
+    except Exception as ex:
+        logging.error(f"Failed to get bounties {ex}")
 
 
 async def assistant(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -206,7 +228,9 @@ async def load_commands():
         ("set_torn_api_key", "Sets Torn API key"),
         ("live_message", "Live message"),
         ("stock", "Stock"),
-        ("stacking", "Toggles stacking mode, preventing notifications for full energy bar")
+        ("stacking", "Toggles stacking mode, preventing notifications for full energy bar"),
+        ("get_link", "Returns link to the bot"),
+        ("bounty", "Starts bounty monitor")
     ])
 
 
@@ -226,6 +250,7 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler("stock", stock))
     application.add_handler(CommandHandler("stacking", stacking))
     application.add_handler(CommandHandler("get_link", get_link))
+    application.add_handler(CommandHandler("bounty", bounty))
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(load_commands())

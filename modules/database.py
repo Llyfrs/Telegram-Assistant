@@ -17,9 +17,10 @@ class ValkeyDB:
         self.valkey_client = ValkeyDB.valkey_client
         self.cache = {}
 
-    def set(self, key: str, value):
-        self.valkey_client.set(key, value)
+    def set(self, key: str, value, expire: int = None):
+        self.valkey_client.set(key, value, ex=expire)
         self.cache[key] = value
+
 
     def get(self, key: str, default=None):
 
@@ -32,9 +33,9 @@ class ValkeyDB:
         else:
             return value
 
-    def set_serialized(self, key: str, value):
+    def set_serialized(self, key: str, value, expire: int = None):
         bytes = pickle.dumps(value)
-        self.set(key, bytes)
+        self.set(key, bytes,expire)
 
     def get_serialized(self, key: str, default=None):
 

@@ -12,6 +12,9 @@ import inspect
 import subprocess
 
 import telegramify_markdown
+from requests.packages import target
+from telebot.types import Message
+from telegram import MessageEntity
 
 from modules.database import ValkeyDB
 from modules.reminder import convert_seconds_to_hms
@@ -34,8 +37,11 @@ class Torn:
         self.bot : telegram.Bot = bot
         self.chat_id = chat_id
         self.running = True
+
+        self.bounties = None
         self.user = None
         self.company = None
+
         self.oldest_event = 0
         self.last_messages= {}
         self.is_stacking = False
@@ -71,6 +77,8 @@ class Torn:
                 await self.bot.delete_message(chat_id=self.chat_id, message_id=self.last_messages[inspect.stack()[1].function].message_id)
             self.last_messages[inspect.stack()[1].function] = message
 
+            return message
+
         except Exception as e:
             logging.error(f"Failed to send message: {e} in message: {text}")
 
@@ -91,12 +99,51 @@ class Torn:
 
 
     async def get_user(self):
-        url = f"https://api.torn.com/user/?selections=profile,cooldowns,newevents,bars&key={self.api_key}"
+        url = f"https://api.torn.com/user/?selections=profile,cooldowns,newevents,bars,battlestats&key={self.api_key}"
         return await self.get(url)
 
     async def get_company(self):
         url = f"https://api.torn.com/company/?selections=employees,detailed,stock&key={self.api_key}"
         return await self.get(url)
+
+    async def get_bounties(self):
+        url = f"https://api.torn.com/v2/torn/?selections=bounties&key={self.api_key}"
+        return await self.get(url)
+
+    async def get_basic_user(self, id):
+        url = f"https://api.torn.com/user/{id}?selections=profile&key={self.api_key}"
+        return await self.get(url)
+
+    ## Example of returned value:
+    ## {
+    # 'Result': 1, 'TargetId': 2531272, 'TBS_Raw': 2984136331, 'TBS': 2984136331, 'TBS_Balanced': 2812817296,
+    # 'Score': 106072, 'Version': 50, 'Reason': '', 'SubscriptionEnd': '2024-10-14T09:29:31.2237362Z',
+    # 'PredictionDate': '2024-10-07T03:35:03.4366667'
+    # }
+    async def get_bts(self, id):
+
+        db = ValkeyDB()
+        cache = db.get_serialized(f"bts:{id}", None)
+
+        if cache is not None:
+            logging.info(f"Using cache for bts:{id}")
+            return cache
+
+
+        url = f'http://www.lol-manager.com/api/battlestats/{self.api_key}/{id}/9.0.5'
+        headers = {
+            'Content-Type': 'application/json',
+        }
+
+        result = requests.get(url, headers=headers).json()
+
+        if result.get("TargetId") is not None:
+            db.set_serialized(f"bts:{id}", result, expire=86400*10)
+            return result
+        else:
+            logging.error(f"Unexpected response from lol-manager {result}")
+            return None
+
 
     async def update_user(self):
         try :
@@ -110,6 +157,13 @@ class Torn:
             self.company = await self.get_company()
         except Exception as e:
             logging.error(f"Failed to get company data: {e}")
+
+
+    async def update_bounties(self):
+        try:
+            self.bounties = await self.get_bounties()
+        except Exception as e:
+            logging.error(f"Failed to get bounties data: {e}")
 
     async def cooldowns(self):
         cooldowns = self.user.get("cooldowns")
@@ -237,7 +291,7 @@ class Torn:
                 trains = self.company.get("company_detailed").get("trains_available")
 
                 messages = (f"You have *{trains} trains* available and your next employee to train is *{employees[order[0]].get('name')}* "
-                            f"you can update their wage to *{wage - trains}* when you finish. [Quick link](https://www.torn.com/companies.php?step=your&type=1)")
+                            f"you can update their wage to `{wage - trains}` when you finish. [Quick link](https://www.torn.com/companies.php?step=your&type=1)")
 
                 logging.info(f"Trains available: {trains}, next employee: {employees[order[0]].get('name')}")
 
@@ -249,11 +303,77 @@ class Torn:
         await self.send(messages)
 
 
+    async def bounty_monitor(self):
+
+        my_bts = self.user.get("total")
+        chat_message : telegram.Message = await self.send("Starting Bounty monitor")
+
+        while True:
+
+            await self.update_bounties()
+
+            monitor = []
+            ids= []
+
+            bounties = self.bounties.get("bounties")
+            monitor.clear()
+            for bounty in bounties:
+                if bounty.get("reward") >= 500000:
+
+                    ## Prevents multiple bounties on single person, keeps it clean
+                    if bounty.get("target_id") in ids:
+                        continue
+
+                    ids.append(bounty.get("target_id"))
+
+
+                    ## Since I'm caching the bts, it's better to call it first to save on API calls
+                    bts = await self.get_bts(bounty.get("target_id"))
+
+                    if bts.get("TBS") > my_bts * 1.1:
+                        logging.info(f"Skipping {bounty.get("target_id")} because of bts {bts.get('TBS')} vs {my_bts}")
+                        continue
+
+                    user_info = await self.get_basic_user(bounty.get("target_id"))
+                    if user_info.get("basicicons").get("icon71") is not None:
+                        logging.info(f"Skipping {user_info.get('name')} because they are aboard")
+                        continue
+
+                    logging.info(f"Adding {user_info.get('name')} to monitor")
+
+
+                    user_info["reward"] = bounty.get("reward")
+                    user_info["TBS"] = bts.get("TBS")
+
+                    monitor.append(user_info)
+
+
+            monitor.sort(key=lambda x: x.get("states").get("hospital_timestamp"))
+
+            message = "*Bounty Monitor*\n\n"
+
+            for user in monitor:
+
+                reward = "${:,.0f}".format(user.get("reward"))
+                bts = round(user.get("TBS") / my_bts * 100)
+
+                message += f"[{user.get('name')}](https://www.torn.com/loader.php?sid=attack&user2ID={user.get("player_id")}) - {reward} "
+                message += user.get("status").get("description") + f"({bts}%)\n"
+
+            message += "\n\nupdated: " + time.strftime('%H:%M:%S', time.localtime())
+
+            message = telegramify_markdown.markdownify(message)
+            await chat_message.edit_text(message, parse_mode="MarkdownV2")
+            await asyncio.sleep(60)
+
+
 
     async def run (self):
 
         logging.info("Torn is up and running")
         cet = pytz.timezone('CET')
+
+        logging.info( await self.get_bts(2531272))
 
         loop = asyncio.get_event_loop()
         schedule.every(30).seconds.do(lambda : asyncio.run_coroutine_threadsafe(self.update_user(), loop))
