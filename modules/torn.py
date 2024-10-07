@@ -42,9 +42,12 @@ class Torn:
         self.user = None
         self.company = None
 
+
+        self.discovered_bounties = []
         self.oldest_event = 0
         self.last_messages= {}
         self.is_stacking = False
+
 
     def set_stacking(self, value):
         self.is_stacking = value
@@ -306,6 +309,51 @@ class Torn:
         await self.send(messages)
 
 
+    async def get_valid_bounties(self, min_money):
+        await self.update_bounties()
+
+
+        monitor = []
+        ids = []
+
+        my_bts = self.user.get("total")
+        bounties = self.bounties.get("bounties")
+
+
+        for bounty in bounties:
+            if bounty.get("reward") >= min_money:
+
+                ## Prevents multiple bounties on single person, keeps it clean
+                if bounty.get("target_id") in ids:
+                    continue
+
+                ids.append(bounty.get("target_id"))
+
+                ## Since I'm caching the bts, it'
+                #
+                # s better to call it first to save on API calls
+                bts = await self.get_bts(bounty.get("target_id"))
+
+                if bts.get("TBS") > my_bts * 1.1:
+                    logging.info(f"Skipping {bounty.get("target_id")} because of bts {bts.get('TBS')} vs {my_bts}")
+                    continue
+
+                user_info = await self.get_basic_user(bounty.get("target_id"))
+                if user_info.get("basicicons").get("icon71") is not None:
+                    logging.info(f"Skipping {user_info.get('name')} because they are aboard")
+                    continue
+
+                logging.info(f"Adding {user_info.get('name')} to monitor")
+
+                user_info["reward"] = bounty.get("reward")
+                user_info["TBS"] = bts.get("TBS")
+
+                user_info["valid_until"] = bounty.get("valid_until")
+
+                monitor.append(user_info)
+
+        return monitor
+
     async def bounty_monitor(self):
 
         my_bts = self.user.get("total")
@@ -313,45 +361,7 @@ class Torn:
 
         while True:
 
-            await self.update_bounties()
-
-            monitor = []
-            ids= []
-
-            bounties = self.bounties.get("bounties")
-            monitor.clear()
-            for bounty in bounties:
-                if bounty.get("reward") >= 500000:
-
-                    ## Prevents multiple bounties on single person, keeps it clean
-                    if bounty.get("target_id") in ids:
-                        continue
-
-                    ids.append(bounty.get("target_id"))
-
-
-                    ## Since I'm caching the bts, it'
-                    #
-                    # s better to call it first to save on API calls
-                    bts = await self.get_bts(bounty.get("target_id"))
-
-                    if bts.get("TBS") > my_bts * 1.1:
-                        logging.info(f"Skipping {bounty.get("target_id")} because of bts {bts.get('TBS')} vs {my_bts}")
-                        continue
-
-                    user_info = await self.get_basic_user(bounty.get("target_id"))
-                    if user_info.get("basicicons").get("icon71") is not None:
-                        logging.info(f"Skipping {user_info.get('name')} because they are aboard")
-                        continue
-
-                    logging.info(f"Adding {user_info.get('name')} to monitor")
-
-
-                    user_info["reward"] = bounty.get("reward")
-                    user_info["TBS"] = bts.get("TBS")
-
-                    monitor.append(user_info)
-
+            monitor = await self.get_valid_bounties(500000)
 
             monitor.sort(key=lambda x: x.get("states").get("hospital_timestamp"))
 
@@ -366,13 +376,35 @@ class Torn:
                 message += user.get("status").get("description") + f" ({bts}%)\n"
 
 
-
-
             message += "\n\nupdated: " + time.strftime('%H:%M:%S', time.localtime())
 
             message = telegramify_markdown.markdownify(message)
             await chat_message.edit_text(message, parse_mode="MarkdownV2")
             await asyncio.sleep(60)
+
+
+    async def bounty_watcher(self):
+        min_money = 1000000
+        monitor = await self.get_valid_bounties(min_money)
+        update_discovered = []
+        count = 0
+
+        for bounty in monitor:
+            record = (bounty.get("player_id"), bounty.get("valid_until"))
+
+            if record not in self.discovered_bounties:
+                count += 1
+
+            update_discovered.append(record)
+
+
+        self.discovered_bounties = update_discovered
+
+        if count > 0:
+            limit = "${:,.0f}".format(min_money)
+            await self.send(f"There are {count} new bounties over the set limit of {limit}")
+
+
 
 
 
@@ -389,6 +421,8 @@ class Torn:
         schedule.every(10).seconds.do(lambda : asyncio.run_coroutine_threadsafe(self.bazaar_alert(), loop))
         schedule.every(15).minutes.do(lambda : asyncio.run_coroutine_threadsafe(self.bars(), loop))
         schedule.every(5).minutes.do(lambda : asyncio.run_coroutine_threadsafe(self.cooldowns(), loop))
+        schedule.every(30).minutes.do(lambda : asyncio.run_coroutine_threadsafe(self.bounty_watcher(), loop))
+
         schedule.every().day.at("17:59", cet).do(lambda: asyncio.run_coroutine_threadsafe(self.update_company(), loop))
 
         schedule.run_all()
