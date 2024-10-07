@@ -10,7 +10,7 @@ import pytz
 import telegram
 import telegramify_markdown
 from anyio import current_time
-from telegram import Update, Message
+from telegram import Update, Message, helpers
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
 from modules.database import ValkeyDB
 
@@ -38,6 +38,13 @@ costs = {
     "gpt-4o-mini": 0.000150 / 1000,
 }
 
+## Interesting concept, for adding controls right in to messages
+## Unfortunately it seems to only call the start function and needs to be used with
+## application.add_handler(CommandHandler("start", deep_linked_level_4, filters.Regex(USING_KEYBOARD)))
+
+async def get_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    url = helpers.create_deep_linked_url(context.bot.username , "test")
+    await update.message.reply_text(url)
 
 async def toggle_retrieval(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """ Toggles retrieval mode.
@@ -89,6 +96,10 @@ async def stock(update: Update, context: ContextTypes.DEFAULT_TYPE):
     torn = context.bot_data["torn"]
     await torn.stock()
 
+async def stacking(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    torn = context.bot_data["torn"]
+    torn.set_stacking(not torn.get_stacking())
+    await update.message.reply_text(f"Stacking is now: {torn.get_stacking()}")
 
 async def clear_thread(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """ Clears the thread """
@@ -100,6 +111,10 @@ async def live_message( update: Update, context: ContextTypes.DEFAULT_TYPE):
     """ Live message """
     message : Message = await update.message.reply_text("Live message")
 
+
+    ## I did tested it in ouside of courutine but for some reason thsese async functions are blocking everything else
+    ## I should look in to changing that in the future, there might be option for that or
+    ## I can just warp the functions in something that will make them run async
     async def timer():
         start = time.time()
         while True:
@@ -124,7 +139,7 @@ async def assistant(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     ## Looks like it duplicates the photos, this should make sure it doesn't do that anymore
     photos = set(photos)
-    client.add_message( f"{get_current_time()}: {update.message.text}", photos)
+    client.add_message( f"{get_current_time()["current_time"]}: {update.message.text}", photos)
 
     steps = client.run_assistant()
 
@@ -180,7 +195,7 @@ def get_current_time():
     print("Returning time: " + str(current_time_and_date))
     return {"current_time": current_time_and_date}
 
-
+# NOTE: it is actually possible to update commands only for specific chat, interesting indeed
 async def load_commands():
     await telegram.Bot.set_my_commands(application.bot, [
         ("toggle_retrieval", "Toggles retrieval mode"),
@@ -190,7 +205,8 @@ async def load_commands():
         ("set_wolframalpha_app_id", "Sets WolframAlpha app id"),
         ("set_torn_api_key", "Sets Torn API key"),
         ("live_message", "Live message"),
-        ("stock", "Stock")
+        ("stock", "Stock"),
+        ("stacking", "Toggles stacking mode, preventing notifications for full energy bar")
     ])
 
 
@@ -208,6 +224,8 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler("set_torn_api_key", set_torn_api_key))
     application.add_handler(CommandHandler("live_message", live_message))
     application.add_handler(CommandHandler("stock", stock))
+    application.add_handler(CommandHandler("stacking", stacking))
+    application.add_handler(CommandHandler("get_link", get_link))
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(load_commands())

@@ -2,8 +2,7 @@ import asyncio
 import logging
 import re
 import time
-from datetime import datetime
-from pyexpat.errors import messages
+
 
 import schedule
 import requests
@@ -36,6 +35,13 @@ class Torn:
         self.user = None
         self.oldest_event = 0
         self.last_messages= {}
+        self.is_stacking = False
+
+    def set_stacking(self, value):
+        self.is_stacking = value
+
+    def get_stacking(self):
+        return self.is_stacking
 
     async def cancel(self):
         self.running = False
@@ -53,20 +59,25 @@ class Torn:
             self.last_messages.pop(caller)
 
     async def send(self, text, clean = True):
-        text = telegramify_markdown.markdownify(text)
-        message = await self.bot.send_message(chat_id=self.chat_id, text=text, parse_mode="MarkdownV2")
+        try:
+            text = telegramify_markdown.markdownify(text)
+            message = await self.bot.send_message(chat_id=self.chat_id, text=text, parse_mode="MarkdownV2")
 
-        ## Wild stuff this is, but it makes sure the bot cleans up after itself, at the same time it sends new message
-        if inspect.stack()[1].function in self.last_messages and clean:
-            await self.bot.delete_message(chat_id=self.chat_id, message_id=self.last_messages[inspect.stack()[1].function].message_id)
-        self.last_messages[inspect.stack()[1].function] = message
+            ## Wild stuff this is, but it makes sure the bot cleans up after itself, at the same time it sends new message
+            if inspect.stack()[1].function in self.last_messages and clean:
+                await self.bot.delete_message(chat_id=self.chat_id, message_id=self.last_messages[inspect.stack()[1].function].message_id)
+            self.last_messages[inspect.stack()[1].function] = message
+
+        except Exception as e:
+            logging.error(f"Failed to send message: {e} in message: {text}")
 
     async def get(self, url):
         response = requests.get(url).json()
 
         while response.get("error") is not None:
 
-            await self.send(response.get("error").get("error"))
+            await self.send(f"Torn API error: {response.get("error").get("error")}")
+            logging.error(f"Torn API error: {response.get("error").get("error")}")
             if response.get("error").get("code") != 5:
                 break
 
@@ -127,7 +138,6 @@ class Torn:
 
             hospital_end = hospital_end - time.time()
 
-            logging.info(f"Hospital end: {hospital_end}")
             try:
                 if 600 > hospital_end > 0:
                     message = f"You have your bazaar open and will be leaving hospital in `{convert_seconds_to_hms(round(hospital_end))}`!!! "
@@ -137,6 +147,8 @@ class Torn:
                 logging.error(f"Failed to check hospital time: {e}")
 
             message += "[Hosp](https://www.torn.com/factions.php?step=your&type=1#/tab=armoury&start=0&sub=medical) your self now, or close your [bazaar](https://www.torn.com/bazaar.php#/)"
+
+            logging.info("User is in hospital and has bazaar open, sending alert")
 
             await self.send(message)
 
@@ -160,7 +172,7 @@ class Torn:
             return
 
 
-        if energy.get("current") == energy.get("maximum"):
+        if energy.get("current") == energy.get("maximum") and not self.is_stacking:
             message += f"\n> Your energy is *full*, use it at [gym](https://www.torn.com/gym.php) 💚"
         elif energy.get("current") > energy.get("maximum") * 0.9:
             message += f"\n> Your energy is almost full, use it at [gym](https://www.torn.com/gym.php) 💚"
