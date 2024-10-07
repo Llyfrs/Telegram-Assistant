@@ -73,10 +73,13 @@ class Torn:
             message = await self.bot.send_message(chat_id=self.chat_id, text=text, parse_mode="MarkdownV2")
 
             ## Wild stuff this is, but it makes sure the bot cleans up after itself, at the same time it sends new message
-            if inspect.stack()[1].function in self.last_messages and clean:
-                await self.bot.delete_message(chat_id=self.chat_id, message_id=self.last_messages[inspect.stack()[1].function].message_id)
-            self.last_messages[inspect.stack()[1].function] = message
+            try:
+                if inspect.stack()[1].function in self.last_messages and clean:
+                    await self.bot.delete_message(chat_id=self.chat_id, message_id=self.last_messages[inspect.stack()[1].function].message_id)
+            except Exception as e:
+                logging.error(f"Failed to clean last message: {e} in message: {text}")
 
+            self.last_messages[inspect.stack()[1].function] = message
             return message
 
         except Exception as e:
