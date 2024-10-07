@@ -361,7 +361,10 @@ class Torn:
                 bts = round(user.get("TBS") / my_bts * 100)
 
                 message += f"[{user.get('name')}](https://www.torn.com/loader.php?sid=attack&user2ID={user.get("player_id")}) - {reward} "
-                message += user.get("status").get("description") + f"({bts}%)\n"
+                message += user.get("status").get("description") + f" ({bts}%)\n"
+
+
+
 
             message += "\n\nupdated: " + time.strftime('%H:%M:%S', time.localtime())
 
