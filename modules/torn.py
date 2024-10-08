@@ -29,6 +29,20 @@ def remove_between_angle_brackets(text):
     return re.sub(r'\s+', ' ', cleaned_text).strip()  # Replace multiple spaces with a single space and strip extra spaces
 
 
+def generate_progress_bar(value, max_value, length=10):
+    progress = int(value / max_value * length)
+    return f"\[{'\#' * progress}{'\-' * (length - progress)}\]"
+
+def logg_error(function):
+
+    async def wrapper(*args, **kwargs):
+        try:
+            return await function(*args, **kwargs)
+        except Exception as e:
+            logging.error(f"Failed to run {function.__name__}: {e}")
+            return None
+
+    return wrapper
 
 class Torn:
 
@@ -132,7 +146,6 @@ class Torn:
         cache = db.get_serialized(f"bts:{id}", None)
 
         if cache is not None:
-            logging.info(f"Using cache for bts:{id}")
             return cache
 
 
@@ -141,17 +154,22 @@ class Torn:
             'Content-Type': 'application/json',
         }
 
-        result = requests.get(url, headers=headers).json()
+        try:
+            result = requests.get(url, headers=headers).json()
 
-        if result.get("TargetId") is not None:
-            db.set_serialized(f"bts:{id}", result, expire=86400*10)
-            return result
-        else:
-            logging.error(f"Unexpected response from lol-manager {result}")
-            return None
-
+            if result.get("TargetId") is not None:
+                db.set_serialized(f"bts:{id}", result, expire=86400*10)
+                return result
+            else:
+                logging.error(f"Unexpected response from lol-manager {result}")
+                return None
+        except Exception as e:
+            logging.error(f"Failed to get bts data: {e}")
 
     async def update_user(self):
+
+        logging.info("Updating user data")
+
         try :
             self.user = await self.get_user()
         except Exception as e:
@@ -159,6 +177,9 @@ class Torn:
             return
 
     async def update_company(self):
+
+        logging.info("Updating company data")
+
         try:
             self.company = await self.get_company()
         except Exception as e:
@@ -172,6 +193,9 @@ class Torn:
             logging.error(f"Failed to get bounties data: {e}")
 
     async def cooldowns(self):
+
+        logging.info("Checking cooldowns")
+
         cooldowns = self.user.get("cooldowns")
         status = self.user.get("status")
 
@@ -195,10 +219,9 @@ class Torn:
 
     async def bazaar_alert(self):
 
-        if self.user.get("basicicons").get("icon35") is None:
+        if self.user.get("basicicons").get("icon35", None) is None:
             await self.clear()
             return
-
 
         status = self.user.get("status")
         if status.get("state") == "Okay" or status.get("state") == "Hospital":
@@ -210,13 +233,8 @@ class Torn:
 
             hospital_end = hospital_end - time.time()
 
-            try:
-                if 600 > hospital_end > 0:
-                    message = f"You have your bazaar open and will be leaving hospital in `{convert_seconds_to_hms(round(hospital_end))}`!!! "
-                else:
-                    return # No need to send message if it's not close to the end
-            except Exception as e:
-                logging.error(f"Failed to check hospital time: {e}")
+            if 600 > hospital_end > 0:
+                message = f"You have your bazaar open and will be leaving hospital in `{convert_seconds_to_hms(round(hospital_end))}`!!! "
 
             message += "[Hosp](https://www.torn.com/factions.php?step=your&type=1#/tab=armoury&start=0&sub=medical) your self now, or close your [bazaar](https://www.torn.com/bazaar.php#/)"
 
@@ -228,10 +246,13 @@ class Torn:
     async def newevents(self):
         newevents = self.user.get("events")
 
+        logging.info("Checking for new events")
+
         for event_id in newevents:
             if newevents[event_id].get("timestamp") > self.oldest_event:
                 self.oldest_event = newevents[event_id].get("timestamp")
                 await self.send(remove_between_angle_brackets(newevents[event_id].get("event")), clean=False)
+                logging.info("New event found, sending alert")
 
     async def bars(self):
         energy = self.user.get("energy")
@@ -315,6 +336,7 @@ class Torn:
 
         monitor = []
         ids = []
+        skipped = [0,0]
 
         my_bts = self.user.get("total")
         bounties = self.bounties.get("bounties")
@@ -335,15 +357,11 @@ class Torn:
                 bts = await self.get_bts(bounty.get("target_id"))
 
                 if bts.get("TBS") > my_bts * 1.1:
-                    logging.info(f"Skipping {bounty.get("target_id")} because of bts {bts.get('TBS')} vs {my_bts}")
                     continue
 
                 user_info = await self.get_basic_user(bounty.get("target_id"))
                 if user_info.get("basicicons").get("icon71") is not None:
-                    logging.info(f"Skipping {user_info.get('name')} because they are aboard")
                     continue
-
-                logging.info(f"Adding {user_info.get('name')} to monitor")
 
                 user_info["reward"] = bounty.get("reward")
                 user_info["TBS"] = bts.get("TBS")
@@ -354,6 +372,7 @@ class Torn:
 
         return monitor
 
+    @logg_error
     async def bounty_monitor(self):
 
         my_bts = self.user.get("total")
@@ -380,6 +399,13 @@ class Torn:
 
             message = telegramify_markdown.markdownify(message)
             await chat_message.edit_text(message, parse_mode="MarkdownV2")
+            """
+            for i in range(0, 20):
+                copy = message
+                copy += generate_progress_bar(i, 20, length=20)
+                await chat_message.edit_text(copy, parse_mode="MarkdownV2")
+                await asyncio.sleep(3)
+            """
             await asyncio.sleep(60)
 
 
@@ -388,12 +414,16 @@ class Torn:
         monitor = await self.get_valid_bounties(min_money)
         update_discovered = []
         count = 0
+        highest = 0
 
         for bounty in monitor:
             record = (bounty.get("player_id"), bounty.get("valid_until"))
 
             if record not in self.discovered_bounties:
                 count += 1
+
+            if bounty.get("reward") > highest:
+                highest = bounty.get("reward")
 
             update_discovered.append(record)
 
@@ -402,20 +432,21 @@ class Torn:
 
         if count > 0:
             limit = "${:,.0f}".format(min_money)
-            await self.send(f"There are {count} new bounties over the set limit of {limit}")
+            highest = "${:,.0f}".format(highest)
+            await self.send(f"There are {count} new bounties over the set limit of {limit}, reaching rewards up to ${highest}")
 
 
+    ##warper
 
-
-
+    @logg_error
     async def run (self):
-
         logging.info("Torn is up and running")
         cet = pytz.timezone('CET')
 
         logging.info( await self.get_bts(2531272))
 
         loop = asyncio.get_event_loop()
+
         schedule.every(30).seconds.do(lambda : asyncio.run_coroutine_threadsafe(self.update_user(), loop))
         schedule.every(30).seconds.do(lambda : asyncio.run_coroutine_threadsafe(self.newevents(), loop))
         schedule.every(10).seconds.do(lambda : asyncio.run_coroutine_threadsafe(self.bazaar_alert(), loop))
@@ -423,12 +454,11 @@ class Torn:
         schedule.every(5).minutes.do(lambda : asyncio.run_coroutine_threadsafe(self.cooldowns(), loop))
         schedule.every(30).minutes.do(lambda : asyncio.run_coroutine_threadsafe(self.bounty_watcher(), loop))
 
-        schedule.every().day.at("17:59", cet).do(lambda: asyncio.run_coroutine_threadsafe(self.update_company(), loop))
-
         schedule.run_all()
 
-        schedule.every().day.at("18:00", cet).do(lambda : asyncio.run_coroutine_threadsafe(self.stock(), loop))
-        schedule.every().day.at("18:00", cet).do(lambda: asyncio.run_coroutine_threadsafe(self.trains(), loop))
+        schedule.every().day.at("06:50", cet).do(lambda: asyncio.run_coroutine_threadsafe(self.update_company(), loop))
+        schedule.every().day.at("07:00", cet).do(lambda : asyncio.run_coroutine_threadsafe(self.stock(), loop))
+        schedule.every().day.at("07:00", cet).do(lambda: asyncio.run_coroutine_threadsafe(self.trains(), loop))
 
         while self.running:
             schedule.run_pending()

@@ -11,7 +11,8 @@ import pytz
 import telegram
 import telegramify_markdown
 from anyio import current_time
-from telegram import Update, Message, helpers
+from telebot.types import InlineQuery
+from telegram import Update, Message, helpers, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
 from modules.database import ValkeyDB
 
@@ -147,9 +148,16 @@ async def bounty(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as ex:
         logging.error(f"Failed to get bounties {ex}")
 
+async def set_timezone(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    pass
+
+
 
 async def assistant(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reminder.chat_id = update.effective_chat.id
+
+    ## Change status to typing
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
 
 
     photos = []
@@ -217,6 +225,11 @@ def get_current_time():
     print("Returning time: " + str(current_time_and_date))
     return {"current_time": current_time_and_date}
 
+def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    update.message.reply_text("Hello, I'm a bot, I can help you with your daily tasks. Use /help to see available commands")
+
+
 # NOTE: it is actually possible to update commands only for specific chat, interesting indeed
 async def load_commands():
     await telegram.Bot.set_my_commands(application.bot, [
@@ -232,6 +245,7 @@ async def load_commands():
         ("get_link", "Returns link to the bot"),
         ("bounty", "Starts bounty monitor")
     ])
+
 
 
 if __name__ == '__main__':
@@ -251,20 +265,22 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler("stacking", stacking))
     application.add_handler(CommandHandler("get_link", get_link))
     application.add_handler(CommandHandler("bounty", bounty))
+    application.add_handler(CommandHandler("set_timezone", set_timezone))
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(load_commands())
 
     t = Torn(application.bot, ValkeyDB().get_serialized("torn_api_key", ""), ValkeyDB().get_serialized("chat_id"))
-    asyncio.run_coroutine_threadsafe(t.run(), loop)
-
     application.bot_data["torn"] = t
+
+    asyncio.run_coroutine_threadsafe(t.run(), loop)
 
     # model = "gpt-4-1106-preview"
     model = "gpt-4o-mini"
     client = openai_api.OpenAI_API(os.environ.get("OPENAI_KEY"), model)
 
     reminder = Reminders(application.bot)
+
     client.add_function(get_current_time, "get_current_time", "Returns the current time")
     client.add_function(seconds_until, "seconds_until", "Returns seconds until date in format %Y-%m-%d %H:%M:%S")
     client.add_function(calculate, "calculate",
