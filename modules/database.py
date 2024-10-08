@@ -8,6 +8,7 @@ import pickle
 
 class ValkeyDB:
     valkey_client : valkey.Valkey = None
+    cache = {}
     def __init__(self):
         valkey_uri = os.getenv("VALKEY_URI")
         if ValkeyDB.valkey_client is None:
@@ -15,17 +16,17 @@ class ValkeyDB:
 
 
         self.valkey_client = ValkeyDB.valkey_client
-        self.cache = {}
+        ValkeyDB.cache = {}
 
     def set(self, key: str, value, expire: int = None):
         self.valkey_client.set(key, value, ex=expire)
-        self.cache[key] = value
+        ValkeyDB.cache[key] = value
 
 
     def get(self, key: str, default=None):
 
-        if key in self.cache:
-            return self.cache[key]
+        if key in ValkeyDB.cache:
+            return ValkeyDB.cache[key]
 
         value = self.valkey_client.get(key)
         if value is None:
@@ -49,8 +50,8 @@ class ValkeyDB:
 
     def delete(self, key: str):
         self.valkey_client.delete(key)
-        if key in self.cache:
-            del self.cache[key]
+        if key in ValkeyDB.cache:
+            del ValkeyDB.cache[key]
 
     def list(self, prefix: str):
 

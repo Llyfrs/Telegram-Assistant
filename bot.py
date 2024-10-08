@@ -14,6 +14,8 @@ from anyio import current_time
 from telebot.types import InlineQuery
 from telegram import Update, Message, helpers, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
+
+from conversations.time_table_creation import time_table_handler
 from modules.database import ValkeyDB
 
 import openai_api
@@ -253,6 +255,8 @@ if __name__ == '__main__':
 
     application.bot_data["settings"] = Settings("settings.pickle")
 
+    application.add_handler(time_table_handler())
+
     application.add_handler(MessageHandler((filters.TEXT | filters.PHOTO) & ~filters.COMMAND, assistant))
     application.add_handler(CommandHandler("toggle_retrieval", toggle_retrieval))
     application.add_handler(CommandHandler("toggle_debug", toggle_debug))
@@ -266,6 +270,8 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler("get_link", get_link))
     application.add_handler(CommandHandler("bounty", bounty))
     application.add_handler(CommandHandler("set_timezone", set_timezone))
+
+
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(load_commands())

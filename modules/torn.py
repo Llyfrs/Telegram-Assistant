@@ -384,7 +384,8 @@ class Torn:
 
             monitor.sort(key=lambda x: x.get("states").get("hospital_timestamp"))
 
-            message = "*Bounty Monitor*\n\n"
+            energy = self.user.get("energy").get("current")
+            message = f"*Bounty Monitor ({energy}e)*\n\n"
 
             for user in monitor:
 
