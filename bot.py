@@ -31,7 +31,7 @@ from modules.files import load_file, save_file, delete_file, get_sections, get_s
 logging.getLogger("httpx").setLevel(logging.ERROR)
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.DEBUG
+    level=logging.INFO
 )
 
 chat_id = None
