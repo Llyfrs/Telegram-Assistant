@@ -1,7 +1,9 @@
+import logging
+
 import pytz
-from telebot.types import InlineKeyboardMarkup
-from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton
-from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, CommandHandler
+
+from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, CommandHandler, CallbackQueryHandler
 
 from modules.timetable import TimeTable
 
@@ -37,8 +39,7 @@ async def time_end(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["time_end"] = update.message.text
 
     keyboard = [
-        [InlineKeyboardButton("Yes", callback_data="yes")],
-        [InlineKeyboardButton("No", callback_data="no")]
+        [InlineKeyboardButton("Yes", callback_data="yes"), InlineKeyboardButton("No", callback_data="no")],
     ]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -52,26 +53,31 @@ async def time_end(update: Update, context: ContextTypes.DEFAULT_TYPE):
                               f"Do you want to save this in to the time table?"
                                 , reply_markup=reply_markup)
 
-
     return CONFIRM
 
 
 
 async def confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    logging.info("Confirm")
+
     query = update.callback_query
     await query.answer()
 
-    if  query.data == "Yes":
+    if  query.data == "yes":
         timezone = pytz.timezone('CET')
         time_table = TimeTable(timezone)
 
         # Save
         time_table.add(context.user_data["time_start"], context.user_data["time_end"], context.user_data["course"], context.user_data["room"], context.user_data["day"])
 
-        await update.message.reply_text("Data saved")
+        await update.effective_chat.send_message("Data saved")
+
 
     else: # Cancel
-        await update.message.reply_text("Data not saved")
+        await update.effective_chat.send_message("Operation cancelled")
+
+    await query.delete_message()
 
     return ConversationHandler.END
 
@@ -88,5 +94,5 @@ def time_table_handler():
             ROOM: [ MessageHandler(None, room) ],
             TIME_START: [ MessageHandler(None, time_start) ],
             TIME_END: [ MessageHandler(None, time_end) ],
-            CONFIRM: [ MessageHandler(None, confirm) ],
+            CONFIRM: [ CallbackQueryHandler(confirm) ]
         }, fallbacks=[ CommandHandler("cancel", cancel) ])
