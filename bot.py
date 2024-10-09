@@ -165,7 +165,7 @@ async def next(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     reply = f"*{lesson['course']}*\n " \
-            f"time: {lesson['start']}-{lesson['end']} " \
+            f"time: {lesson['start']}-{lesson['end']} \n" \
             f"location: {lesson['location']}"
 
     reply = telegramify_markdown.markdownify(reply)
@@ -185,7 +185,7 @@ async def now(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     reply = f"*{lesson['course']}*\n " \
-            f"time: {lesson['start']}-{lesson['end']} " \
+            f"time: {lesson['start']}-{lesson['end']} \n" \
             f"location: {lesson['location']}"
 
     reply = telegramify_markdown.markdownify(reply)
