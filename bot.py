@@ -164,7 +164,13 @@ async def next(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("No more lessons today")
         return
 
-    await update.message.reply_text(f"Next lesson is {lesson['course']} at {lesson['start']} in {lesson['location']}")
+    reply = f"*{lesson['course']}*\n " \
+            f"time: {lesson['start']}-{lesson['end']} " \
+            f"location: {lesson['location']}"
+
+    reply = telegramify_markdown.markdownify(reply)
+
+    await update.message.reply_text(reply, parse_mode="MarkdownV2")
 
     pass
 
@@ -178,7 +184,13 @@ async def now(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("No more lessons today")
         return
 
-    await update.message.reply_text(f"Current lesson is {lesson['course']} at {lesson['start']} in {lesson['location']}")
+    reply = f"*{lesson['course']}*\n " \
+            f"time: {lesson['start']}-{lesson['end']} " \
+            f"location: {lesson['location']}"
+
+    reply = telegramify_markdown.markdownify(reply)
+
+    await update.message.reply_text(reply, parse_mode="MarkdownV2")
 
     pass
 
