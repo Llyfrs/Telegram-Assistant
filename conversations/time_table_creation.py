@@ -1,4 +1,6 @@
 import logging
+import re
+from datetime import datetime
 
 import pytz
 
@@ -15,7 +17,14 @@ async def enter(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def day(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["day"] = update.message.text
+    day = update.message.text
+
+    if day.lower() not in ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]:
+        await update.message.reply_text("Invalid day, try again or /cancel")
+        return DAY
+
+    context.user_data["day"] = day.lower()
+
     await update.message.reply_text("Enter the course")
     return COURSE
 
@@ -31,12 +40,27 @@ async def room(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def time_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["time_start"] = update.message.text
+    start_time = update.message.text
+
+    if not re.match(r"^\d{1,2}:\d{1,2}$", start_time):
+        await update.message.reply_text("Invalid time format, try again or /cancel")
+        return TIME_START
+
+    context.user_data["time_start"] = start_time
+
     await update.message.reply_text("Enter the end time")
     return TIME_END
 
 async def time_end(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["time_end"] = update.message.text
+
+    if not re.match(r"^\d{1,2}:\d{1,2}$", context.user_data["time_end"]):
+        await update.message.reply_text("Invalid time format, try again or /cancel")
+        return TIME_END
+
+    if datetime.strptime(context.user_data["time_start"], "%H:%M") >= datetime.strptime(context.user_data["time_end"], "%H:%M"):
+        await update.message.reply_text("End time is before start time, try again or /cancel")
+        return TIME_END
 
     keyboard = [
         [InlineKeyboardButton("Yes", callback_data="yes"), InlineKeyboardButton("No", callback_data="no")],

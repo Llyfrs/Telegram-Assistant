@@ -21,6 +21,7 @@ from modules.database import ValkeyDB
 import openai_api
 from modules.Settings import Settings
 from modules.reminder import Reminders, calculate_seconds, convert_seconds_to_hms, seconds_until
+from modules.timetable import TimeTable
 from modules.tools import debug
 from modules.torn import Torn
 from modules.wolfamalpha import calculate
@@ -154,6 +155,32 @@ async def set_timezone(update: Update, context: ContextTypes.DEFAULT_TYPE):
     pass
 
 
+async def next(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    timetable = context.bot_data["timetable"]
+
+    lesson = timetable.next()
+
+    if lesson is None:
+        await update.message.reply_text("No more lessons today")
+        return
+
+    await update.message.reply_text(f"Next lesson is {lesson['course']} at {lesson['start']} in {lesson['location']}")
+
+    pass
+
+
+async def now(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    timetable = context.bot_data["timetable"]
+
+    lesson = timetable.now()
+
+    if lesson is None:
+        await update.message.reply_text("No more lessons today")
+        return
+
+    await update.message.reply_text(f"Current lesson is {lesson['course']} at {lesson['start']} in {lesson['location']}")
+
+    pass
 
 async def assistant(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reminder.chat_id = update.effective_chat.id
@@ -227,10 +254,6 @@ def get_current_time():
     print("Returning time: " + str(current_time_and_date))
     return {"current_time": current_time_and_date}
 
-def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    update.message.reply_text("Hello, I'm a bot, I can help you with your daily tasks. Use /help to see available commands")
-
 
 # NOTE: it is actually possible to update commands only for specific chat, interesting indeed
 async def load_commands():
@@ -270,6 +293,8 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler("get_link", get_link))
     application.add_handler(CommandHandler("bounty", bounty))
     application.add_handler(CommandHandler("set_timezone", set_timezone))
+    application.add_handler(CommandHandler("next", next))
+    application.add_handler(CommandHandler("now", now))
 
 
 
@@ -286,6 +311,9 @@ if __name__ == '__main__':
     client = openai_api.OpenAI_API(os.environ.get("OPENAI_KEY"), model)
 
     reminder = Reminders(application.bot)
+
+
+    application.bot_data["timetable"] = TimeTable(pytz.timezone('CET'))
 
     client.add_function(get_current_time, "get_current_time", "Returns the current time")
     client.add_function(seconds_until, "seconds_until", "Returns seconds until date in format %Y-%m-%d %H:%M:%S")

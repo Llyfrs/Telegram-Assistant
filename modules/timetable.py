@@ -23,7 +23,6 @@ class TimeTable:
 
         self.db.set_serialized("timetable", self.timetable)
 
-
     def now(self):
         day = datetime.now(self.timezone).strftime("%A").lower()
         now = datetime.now(self.timezone)
@@ -32,8 +31,11 @@ class TimeTable:
             return None
 
         for lesson in self.timetable[day]:
-            start = datetime.strptime(lesson["start"], "%H:%M")
-            end = datetime.strptime(lesson["end"], "%H:%M")
+            # Combine the current date with the start and end times
+            start = now.replace(hour=int(lesson["start"].split(":")[0]), minute=int(lesson["start"].split(":")[1]),
+                                second=0, microsecond=0)
+            end = now.replace(hour=int(lesson["end"].split(":")[0]), minute=int(lesson["end"].split(":")[1]), second=0,
+                              microsecond=0)
 
             if start <= now <= end:
                 return lesson
@@ -47,10 +49,12 @@ class TimeTable:
         if day not in self.timetable:
             return None
 
-        lessons = self.timetable[day].sort(key=lambda x: datetime.strptime(x["start"], "%H:%M"))
+        lessons = sorted(self.timetable[day], key=lambda x: datetime.strptime(x["start"], "%H:%M"))
 
         for lesson in lessons:
-            start = datetime.strptime(lesson["start"], "%H:%M")
+            # Combine the current date with the start time
+            start = now.replace(hour=int(lesson["start"].split(":")[0]), minute=int(lesson["start"].split(":")[1]),
+                                second=0, microsecond=0)
 
             if start >= now:
                 return lesson
