@@ -15,7 +15,7 @@ from telebot.types import InlineQuery
 from telegram import Update, Message, helpers, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
 
-from conversations.time_table_creation import time_table_handler
+from conversations.time_table import time_table_handler
 from modules.database import ValkeyDB
 
 import openai_api
@@ -187,6 +187,7 @@ async def now(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply = f"*{lesson['course']}*\n " \
             f"time: {lesson['start']}-{lesson['end']} \n" \
             f"location: {lesson['location']}"
+
 
     reply = telegramify_markdown.markdownify(reply)
 

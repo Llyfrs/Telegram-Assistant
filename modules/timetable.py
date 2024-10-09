@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 
 from modules.database import ValkeyDB
@@ -8,6 +9,8 @@ class TimeTable:
         self.db = ValkeyDB()
         self.timezone : datetime.tzinfo  = timezone
         self.timetable = self.db.get_serialized("timetable", {})
+
+        logging.info(f"TimeTable: {self.timetable}")
 
 
     def add(self, start, end, course, location, day):
@@ -61,8 +64,18 @@ class TimeTable:
 
         return None
 
+    def remove(self, day, index):
+        self.timetable[day].pop(index)
 
+        if len(self.timetable[day]) == 0:
+            self.timetable.pop(day)
+
+        self.db.set_serialized("timetable", self.timetable)
 
     def clear(self, day):
         self.timetable[day] = []
         self.db.set_serialized("timetable", self.timetable)
+
+
+    def get_day(self, day):
+        return self.timetable.get(day, [])
