@@ -238,9 +238,9 @@ class Torn:
 
             message += "[Hosp](https://www.torn.com/factions.php?step=your&type=1#/tab=armoury&start=0&sub=medical) your self now, or close your [bazaar](https://www.torn.com/bazaar.php#/)"
 
-            logging.info("User is in hospital and has bazaar open, sending alert")
-
-            await self.send(message)
+            if hospital_end < 600:
+                logging.info("User is in hospital and has bazaar open, sending alert")
+                await self.send(message)
 
 
     async def newevents(self):
