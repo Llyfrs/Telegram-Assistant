@@ -2,19 +2,16 @@ import asyncio
 import logging
 import re
 import time
-from pyexpat.errors import messages
 
 import pytz
 import schedule
 import requests
 import telegram
 import inspect
-import subprocess
+
 
 import telegramify_markdown
-from requests.packages import target
-from telebot.types import Message
-from telegram import MessageEntity
+
 
 from modules.database import ValkeyDB
 from modules.reminder import convert_seconds_to_hms
@@ -487,11 +484,9 @@ class Torn:
         schedule.run_all()
 
         schedule.every(30).minutes.do(lambda: asyncio.run_coroutine_threadsafe(self.bounty_watcher(), loop))
+
         schedule.every().day.at("06:50", cet).do(lambda: asyncio.run_coroutine_threadsafe(self.update_company(), loop))
         schedule.every().day.at("07:00", cet).do(lambda : asyncio.run_coroutine_threadsafe(self.stock(), loop))
-
-
-
         schedule.every().day.at("07:00", cet).do(lambda: asyncio.run_coroutine_threadsafe(self.trains(), loop))
 
         while self.running:

@@ -1,10 +1,12 @@
 # Telegram-Assistant
 
-This is personal AI assistant that communicates with the user using Telegram. You will need telegram and openAI keys to run it, and put them in to environment variables named OPENAI_KEY TELEGRAM_KEY. 
+This is personal AI assistant that communicates with the user using Telegram. It's bit of a personal project that I decide to make public, so I am forced to put sensitive information such as keys somewhere else that in to the source code. 
+Originally this was very focused on using AI to manage stuff like my timers or notes, but either the models are too expensive for me to use on daily basis, or they aren't smart enough to actually perform operations I need from them consistently, without me having the check their work. 
+So while the AI is still part of this bot, it's taking a back seat until it gets to a point where it can handle more complex tasks without needing babysitter. 
 
-NOTE: you can't probably even run it even if you use your own keys because of preset id for the assistant and I don't know if you can use the one I generated or if you need to generate your own. 
+NOTE: I'm slowly getting this project to a state where anybody could run their own version, it currently only needs `TELEGRAM_KEY`, `OPENAI_KEY` and `VALKEY_URI` passed as environment variables, I used aiven to host my Valkey instance, but it should be possible to run one on local host.
 
-Currently the AI assistant can only create timers / reminders and run python code. 
+Currently, the AI assistant can create reminders, create and manage files and I allowed for it to be able to see send images. 
 
 ## TODO 
 - add google calendar integration
