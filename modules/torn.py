@@ -282,17 +282,47 @@ class Torn:
             await self.clear()
 
 
-    ## Small calculator for company stock that I wrote in rust and didn't feel like rewriting it when I can just import the binary
+    @logg_error
     async def stock(self):
-        try:
-            result = subprocess.run(["modules/stock_calculator"] + [self.api_key], stdout=subprocess.PIPE)
-            result = result.stdout.decode("utf-8")
-        except Exception as e:
-            logging.error(f"Failed to get stock data: {e}")
-            return
 
-        await self.send(result)
+        company_stock = self.company.get("company_stock")
+        storage_space = self.company.get("company_detailed").get("upgrades").get("storage_space")
 
+        total_sold = sum(float(v["sold_amount"]) for v in company_stock.values())
+        total_in_stock = sum(float(v["in_stock"]) + float(v["on_order"]) for v in company_stock.values())
+
+        aim_ratio = storage_space / total_sold
+        capacity = storage_space - total_in_stock
+        run_out = False
+
+        message = "*Stock Alert*:\n"
+
+        message += f"Capacity to fill: {capacity}\n"
+        message += f"Global ratio: {aim_ratio:.2f}\n"
+
+        for key, value in company_stock.items():
+            sold = float(value["sold_amount"])
+            in_stock = float(value["in_stock"]) + float(value["on_order"])
+
+            diff = aim_ratio - (in_stock / sold)
+
+            if diff <= 0.0:
+                print(f"{key}: 0 ({in_stock / sold:.2f})")
+            else:
+                buy = diff * sold
+                capacity -= buy
+
+                if run_out:
+                    buy = 0.0
+                elif capacity <= 0.0:
+                    run_out = True
+                    buy = capacity + buy
+
+                message += f"{key}: {buy:.0f} ({in_stock / sold:.2f})\n"
+
+        message += f"Capacity: {round(capacity,2)}"
+
+        await self.send(message)
 
     async def trains(self):
         try:
@@ -453,12 +483,15 @@ class Torn:
         schedule.every(10).seconds.do(lambda : asyncio.run_coroutine_threadsafe(self.bazaar_alert(), loop))
         schedule.every(15).minutes.do(lambda : asyncio.run_coroutine_threadsafe(self.bars(), loop))
         schedule.every(5).minutes.do(lambda : asyncio.run_coroutine_threadsafe(self.cooldowns(), loop))
-        schedule.every(30).minutes.do(lambda : asyncio.run_coroutine_threadsafe(self.bounty_watcher(), loop))
 
-        schedule.run_all()
 
         schedule.every().day.at("06:50", cet).do(lambda: asyncio.run_coroutine_threadsafe(self.update_company(), loop))
         schedule.every().day.at("07:00", cet).do(lambda : asyncio.run_coroutine_threadsafe(self.stock(), loop))
+
+        schedule.run_all()
+        schedule.every(30).minutes.do(lambda: asyncio.run_coroutine_threadsafe(self.bounty_watcher(), loop))
+
+
         schedule.every().day.at("07:00", cet).do(lambda: asyncio.run_coroutine_threadsafe(self.trains(), loop))
 
         while self.running:
