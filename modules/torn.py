@@ -264,7 +264,7 @@ class Torn:
 
         if energy.get("current") == energy.get("maximum") and not self.is_stacking:
             message += f"\n> Your energy is *full*, use it at [gym](https://www.torn.com/gym.php) 💚"
-        elif energy.get("current") > energy.get("maximum") * 0.9:
+        elif energy.get("current") > energy.get("maximum") * 0.9 and not self.is_stacking:
             message += f"\n> Your energy is almost full, use it at [gym](https://www.torn.com/gym.php) 💚"
 
         if nerve.get("current") == nerve.get("maximum"):
@@ -476,16 +476,16 @@ class Torn:
         loop = asyncio.get_event_loop()
 
         schedule.every(30).seconds.do(lambda : asyncio.run_coroutine_threadsafe(self.update_user(), loop))
-        # schedule.every(30).seconds.do(lambda : asyncio.run_coroutine_threadsafe(self.newevents(), loop))
+        schedule.every(30).seconds.do(lambda : asyncio.run_coroutine_threadsafe(self.newevents(), loop))
         schedule.every(10).seconds.do(lambda : asyncio.run_coroutine_threadsafe(self.bazaar_alert(), loop))
-        schedule.every(5).minutes.do(lambda : asyncio.run_coroutine_threadsafe(self.bars(), loop))
-        schedule.every(3).minutes.do(lambda : asyncio.run_coroutine_threadsafe(self.cooldowns(), loop))
+        schedule.every(10).minutes.do(lambda : asyncio.run_coroutine_threadsafe(self.bars(), loop))
+        schedule.every(5).minutes.do(lambda : asyncio.run_coroutine_threadsafe(self.cooldowns(), loop))
 
         schedule.every().day.at("06:50", cet).do(lambda: asyncio.run_coroutine_threadsafe(self.update_company(), loop))
 
         schedule.run_all()
 
-        #schedule.every(30).minutes.do(lambda: asyncio.run_coroutine_threadsafe(self.bounty_watcher(), loop))
+        schedule.every(30).minutes.do(lambda: asyncio.run_coroutine_threadsafe(self.bounty_watcher(), loop))
 
         schedule.every().day.at("07:00", cet).do(lambda : asyncio.run_coroutine_threadsafe(self.stock(), loop))
         schedule.every().day.at("07:00", cet).do(lambda: asyncio.run_coroutine_threadsafe(self.trains(), loop))
