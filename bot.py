@@ -209,6 +209,9 @@ async def assistant(update: Update, context: ContextTypes.DEFAULT_TYPE):
         photos.append(photo.file_path)
 
 
+    if len(photos) != 0:
+        print(update.message.text)
+
     ## Looks like it duplicates the photos, this should make sure it doesn't do that anymore
     photos = set(photos)
     client.add_message( f"{get_current_time()["current_time"]}: {update.message.text}", photos)
