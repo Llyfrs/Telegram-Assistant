@@ -15,6 +15,7 @@ from telebot.types import InlineQuery
 from telegram import Update, Message, helpers, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
 
+from conversations.settings import settings_handler
 from conversations.time_table import time_table_handler
 from modules.database import ValkeyDB
 
@@ -295,6 +296,7 @@ if __name__ == '__main__':
     application.bot_data["settings"] = Settings("settings.pickle")
 
     application.add_handler(time_table_handler())
+    application.add_handler(settings_handler())
 
     application.add_handler(MessageHandler((filters.TEXT | filters.PHOTO) & ~filters.COMMAND, assistant))
     application.add_handler(CommandHandler("toggle_retrieval", toggle_retrieval))
