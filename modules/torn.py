@@ -11,7 +11,7 @@ import inspect
 
 
 import telegramify_markdown
-
+from bleach import clean
 
 from modules.database import ValkeyDB
 from modules.reminder import convert_seconds_to_hms
@@ -245,11 +245,17 @@ class Torn:
 
         logging.info("Checking for new events")
 
+        events = []
+
         for event_id in newevents:
             if newevents[event_id].get("timestamp") > self.oldest_event:
                 self.oldest_event = newevents[event_id].get("timestamp")
-                await self.send(remove_between_angle_brackets(newevents[event_id].get("event")), clean=False)
-                logging.info("New event found, sending alert")
+                events.append(remove_between_angle_brackets(newevents[event_id].get("event")))
+
+
+        if len(events) > 0:
+            logging.info("New event found, sending alert")
+            await self.send("*Events*\n\n" + "\n".join(events), clean=False)
 
     async def bars(self):
         energy = self.user.get("energy")

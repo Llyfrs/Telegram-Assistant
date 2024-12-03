@@ -211,6 +211,7 @@ async def assistant(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
     if len(photos) != 0:
+        print(update.message.caption)
         print(update.message.text)
 
     ## Looks like it duplicates the photos, this should make sure it doesn't do that anymore
