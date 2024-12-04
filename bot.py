@@ -206,9 +206,10 @@ async def assistant(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print(update)
 
     photos = []
-    photo = update.message.photo[-1]
-    file = await context.bot.get_file(photo.file_id)# Renamed to clarify
-    photos.append(file)
+    if len(update.message.photo):
+        photo = update.message.photo[-1]
+        file = await context.bot.get_file(photo.file_id)# Renamed to clarify
+        photos.append(file.file_path)
 
     message = update.message.text
 

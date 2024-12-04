@@ -400,6 +400,7 @@ class Torn:
 
                 user_info["valid_until"] = bounty.get("valid_until")
 
+
                 monitor.append(user_info)
 
         return monitor
@@ -449,24 +450,63 @@ class Torn:
         count = 0
         highest = 0
 
+        new_bounties = []
+
         for bounty in monitor:
             record = (bounty.get("player_id"), bounty.get("valid_until"))
 
             if record not in self.discovered_bounties:
+                new_bounties.append(bounty)
                 count += 1
-
-            if bounty.get("reward") > highest:
-                highest = bounty.get("reward")
 
             update_discovered.append(record)
 
 
         self.discovered_bounties = update_discovered
 
-        if count > 0:
-            limit = "${:,.0f}".format(min_money)
-            highest = "${:,.0f}".format(highest)
-            await self.send(f"There are {count} new bounties over the set limit of {limit}, reaching rewards up to ${highest}")
+        for bounty in new_bounties:
+            if bounty.get("states").get("hospital_timestamp") == 0:
+                await self.send(f"{bounty.get('name')} is out of hospital with a bounty of ${bounty.get('reward')}. "
+                                f"[Attack](https://www.torn.com/loader.php?sid=attack&user2ID={bounty.get('player_id')})")
+
+            else:
+                logging.info(f"New bounty found: {bounty.get('name')} with ${bounty.get('reward')}, creating watcher")
+                asyncio.run_coroutine_threadsafe(self.watch_player_bounty(bounty), asyncio.get_event_loop())
+
+    async def watch_player_bounty(self, player_info):
+
+        limit = 180
+
+        while True:
+
+            logging.info(f"Watching {player_info.get('name')}")
+
+            now = time.time()
+            hospital = player_info.get("states").get("hospital_timestamp")
+
+
+            if hospital - limit < now:
+                user_info = await self.get_basic_user(player_info.get("player_id"))
+
+                if user_info.get("states").get("hospital_timestamp") == 0:
+                    break
+
+                if user_info.get("basicicons").get("icon13") is None:
+                    break
+
+                reward = "${:,.0f}".format(player_info.get("reward"))
+                message = await self.send(
+                    f"{user_info.get('name')} is about to leave hospital with a bounty of {reward}. "
+                    f"[Attack](https://www.torn.com/loader.php?sid=attack&user2ID={player_info.get('player_id')})")
+
+
+                await asyncio.sleep(limit)
+                await message.delete()
+                break
+
+            await asyncio.sleep(60)
+
+        pass
 
 
     ##warper
@@ -487,10 +527,9 @@ class Torn:
         schedule.every(5).minutes.do(lambda : asyncio.run_coroutine_threadsafe(self.cooldowns(), loop))
 
         schedule.every().day.at("06:50", cet).do(lambda: asyncio.run_coroutine_threadsafe(self.update_company(), loop))
+        schedule.every(30).minutes.do(lambda: asyncio.run_coroutine_threadsafe(self.bounty_watcher(), loop))
 
         schedule.run_all()
-
-        schedule.every(30).minutes.do(lambda: asyncio.run_coroutine_threadsafe(self.bounty_watcher(), loop))
 
         schedule.every().day.at("07:00", cet).do(lambda : asyncio.run_coroutine_threadsafe(self.stock(), loop))
         schedule.every().day.at("07:00", cet).do(lambda: asyncio.run_coroutine_threadsafe(self.trains(), loop))

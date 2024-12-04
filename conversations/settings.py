@@ -9,8 +9,6 @@ class SettingsEnum:
     RETRIEVAL = "retrieval"
 
 
-
-
 def generate_keyboard():
     db = ValkeyDB()
 
@@ -18,8 +16,6 @@ def generate_keyboard():
 
     keyboard.append([ InlineKeyboardButton(text=f"Debug: {db.get_serialized(SettingsEnum.DEBUG)}", callback_data=SettingsEnum.DEBUG)])
     keyboard.append([ InlineKeyboardButton(text=f"Retrieval: {db.get_serialized(SettingsEnum.RETRIEVAL)}", callback_data=SettingsEnum.RETRIEVAL)])
-
-
 
     keyboard.append([InlineKeyboardButton(text="Cancel",callback_data="cancel")])
 
