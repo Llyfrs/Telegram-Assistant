@@ -6,6 +6,7 @@ import logging
 import os
 import time
 from asyncio import Future
+from pyexpat.errors import messages
 
 import pytz
 import telegram
@@ -202,21 +203,20 @@ async def assistant(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ## Change status to typing
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
 
+    print(update)
 
     photos = []
-    photo = update.message.photo
-    for p in photo:
-        photo = await context.bot.get_file(p.file_id)
-        photos.append(photo.file_path)
+    photo = update.message.photo[-1]
+    file = await context.bot.get_file(photo.file_id)# Renamed to clarify
+    photos.append(file)
 
+    message = update.message.text
 
     if len(photos) != 0:
-        print(update.message.caption)
-        print(update.message.text)
+        logging.info(f"User sent {len(photos)} photos")
+        message = update.message.caption
 
-    ## Looks like it duplicates the photos, this should make sure it doesn't do that anymore
-    photos = set(photos)
-    client.add_message( f"{get_current_time()["current_time"]}: {update.message.text}", photos)
+    client.add_message( f"{get_current_time()["current_time"]}: {message}", photos)
 
     steps = client.run_assistant()
 
