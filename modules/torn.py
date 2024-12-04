@@ -395,6 +395,9 @@ class Torn:
                 if user_info.get("basicicons").get("icon71") is not None:
                     continue
 
+                if user_info.get("basicicons").get("icon72") is not None:
+                    continue
+
                 user_info["reward"] = bounty.get("reward")
                 user_info["TBS"] = bts.get("TBS")
 
