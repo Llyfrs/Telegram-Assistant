@@ -335,10 +335,16 @@ class Torn:
                 employees = self.company.get("company_employees")
                 order : list = ValkeyDB().get_serialized("last_employee_trained", [])
 
+                emp = [ id for id in employees]
                 for id in employees:
                     if employees[id].get("wage") > 0:
                         if id not in order:
                             order.append(id)
+
+
+                for id in order:
+                    if id not in emp:
+                        order.remove(id)
 
 
                 order.append(order.pop(0))
