@@ -164,8 +164,6 @@ class Torn:
 
     async def update_user(self):
 
-        logging.info("Updating user data")
-
         try :
             self.user = await self.get_user()
         except Exception as e:
@@ -173,8 +171,6 @@ class Torn:
             return
 
     async def update_company(self):
-
-        logging.info("Updating company data")
 
         try:
             self.company = await self.get_company()
@@ -189,8 +185,6 @@ class Torn:
             logging.error(f"Failed to get bounties data: {e}")
 
     async def cooldowns(self):
-
-        logging.info("Checking cooldowns")
 
         cooldowns = self.user.get("cooldowns")
         status = self.user.get("status")
@@ -241,8 +235,6 @@ class Torn:
 
     async def newevents(self):
         newevents = self.user.get("events")
-
-        logging.info("Checking for new events")
 
         events = []
 
@@ -341,11 +333,9 @@ class Torn:
                         if id not in order:
                             order.append(id)
 
-
                 for id in order:
                     if id not in emp:
                         order.remove(id)
-
 
                 order.append(order.pop(0))
                 ValkeyDB().set_serialized("last_employee_trained", order)

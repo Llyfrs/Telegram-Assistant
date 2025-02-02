@@ -104,17 +104,19 @@ async def email_updates(bot: telegram.Bot, chat_id: str):
 
     logging.info("Email bot started")
 
+    errors = 0
+
     while True:
         try:
             summary = email.summarize_new()
 
-            logging.info(f"Processing {len(summary)} new emails")
+            if len(summary) > 0:
+                logging.info(f"Processing {len(summary)} new emails")
 
             for e, response in summary:
 
                 if response.spam:
                     continue
-
 
                 message = "📨 *Email Received* \n\n"
 
@@ -141,9 +143,12 @@ async def email_updates(bot: telegram.Bot, chat_id: str):
                 )
 
         except Exception as e:
-            await bot.send_message(
-                chat_id=chat_id,
-                text=f"Email Error: {e}"
-            )
+            logging.error(f"Email Error: {e}")
+            errors += 1
 
-        await asyncio.sleep(60)
+            if errors > 3:
+                logging.error("Too many errors pausing email bot")
+                await asyncio.sleep(60 * 10)
+
+
+        await asyncio.sleep(100)
