@@ -11,8 +11,6 @@ from pyexpat.errors import messages
 import pytz
 import telegram
 import telegramify_markdown
-from anyio import current_time
-from telebot.types import InlineQuery
 from telegram import Update, Message, helpers, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
 
@@ -53,21 +51,6 @@ costs = {
 async def get_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = helpers.create_deep_linked_url(context.bot.username , "test")
     await update.message.reply_text(url)
-
-async def toggle_retrieval(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """ Toggles retrieval mode.
-    This will enable the retrieval tool and switch mode to GPT4
-    """
-    db = ValkeyDB()
-    db.set_serialized("retrieval", not db.get_serialized("retrieval", False))
-    await update.message.reply_text(f"Retrieval is now: {db.get_serialized('retrieval')}")
-
-
-async def toggle_debug(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """ Toggles debug mode """
-    db = ValkeyDB()
-    db.set_serialized("debug", not db.get_serialized("debug", False))
-    await update.message.reply_text(f"Debug is now: {db.get_serialized('debug')}")
 
 
 async def toggle_model(update: Update, context: ContextTypes.DEFAULT_TYPE):
