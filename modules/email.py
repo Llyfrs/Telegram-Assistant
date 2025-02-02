@@ -84,8 +84,6 @@ class Email:
 
 
 
-
-
 class EmailResponse(BaseModel):
     summary: str
     spam: bool
