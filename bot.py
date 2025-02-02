@@ -22,6 +22,7 @@ from modules.database import ValkeyDB
 
 import openai_api
 from modules.Settings import Settings
+from modules.email import email_updates
 from modules.reminder import Reminders, calculate_seconds, convert_seconds_to_hms, seconds_until
 from modules.timetable import TimeTable
 from modules.tools import debug
@@ -217,7 +218,7 @@ async def assistant(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logging.info(f"User sent {len(photos)} photos")
         message = update.message.caption
 
-    client.add_message( f"{get_current_time()["current_time"]}: {message}", photos)
+    client.add_message( f"{get_current_time()['current_time']}: {message}", photos)
 
     steps = client.run_assistant()
 
@@ -321,7 +322,9 @@ if __name__ == '__main__':
     loop = asyncio.get_event_loop()
     loop.run_until_complete(load_commands())
 
-    t = Torn(application.bot, ValkeyDB().get_serialized("torn_api_key", ""), ValkeyDB().get_serialized("chat_id"))
+    chat_id = ValkeyDB().get_serialized("chat_id")
+
+    t = Torn(application.bot, ValkeyDB().get_serialized("torn_api_key", ""), chat_id)
     application.bot_data["torn"] = t
 
     asyncio.run_coroutine_threadsafe(t.run(), loop)
@@ -334,6 +337,8 @@ if __name__ == '__main__':
 
 
     application.bot_data["timetable"] = TimeTable(pytz.timezone('CET'))
+
+    asyncio.run_coroutine_threadsafe(email_updates(application.bot, chat_id), loop)
 
     client.add_function(get_current_time, "get_current_time", "Returns the current time")
     client.add_function(seconds_until, "seconds_until", "Returns seconds until date in format %Y-%m-%d %H:%M:%S")

@@ -27,7 +27,7 @@ def remove_between_angle_brackets(text):
 
 def generate_progress_bar(value, max_value, length=10):
     progress = int(value / max_value * length)
-    return f"\[{'\#' * progress}{'\-' * (length - progress)}\]"
+    return f"\[{'#' * progress}{'-' * (length - progress)}\]"
 
 def logg_error(function):
 
@@ -103,8 +103,8 @@ class Torn:
 
         while response.get("error") is not None:
 
-            await self.send(f"Torn API error: {response.get("error").get("error")}")
-            logging.error(f"Torn API error: {response.get("error").get("error")}")
+            await self.send(f"Torn API error: {0}".format(response.get("error").get("error")))
+            logging.error(f"Torn API error: {0}".format(response.get("error").get("error")))
             if response.get("error").get("code") != 5:
                 break
 
@@ -434,7 +434,7 @@ class Torn:
                 reward = "${:,.0f}".format(user.get("reward"))
                 bts = round(user.get("TBS") / my_bts * 100)
 
-                message += f"[{user.get('name')}](https://www.torn.com/loader.php?sid=attack&user2ID={user.get("player_id")}) - {reward} "
+                message += f"[{user.get('name')}](https://www.torn.com/loader.php?sid=attack&user2ID={user.get('player_id')}) - {reward} "
                 message += user.get("status").get("description") + f" ({bts}%)\n"
 
 

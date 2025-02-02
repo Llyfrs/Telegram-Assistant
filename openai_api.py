@@ -2,15 +2,12 @@ import logging
 import time
 
 import openai
-from openai.types.beta import Thread
-from openai.types.beta.threads import ImageFileContentBlock, TextContentBlock, TextContentBlockParam, \
-    ImageFileContentBlockParam, ImageURLContentBlockParam, ImageURLParam
 
 from functions import Functions
 
 
 class OpenAI_API:
-    def __init__(self, key: str, model: str = "gpt-4o"):
+    def __init__(self, key: str, model: str = "gpt-4o-mini"):
         self.key = key
         self.client = openai.OpenAI(api_key=key, default_headers={"OpenAI-Beta": "assistants=v2"})
         self.functions = Functions()
@@ -61,15 +58,19 @@ class OpenAI_API:
         if self.model == "gpt-4o":
             self.clear_thread()
 
-        content = [TextContentBlockParam(text=message, type="text")]
+        content = [{"type": "text", "value": message}]
 
         for photo in photos:
-            content.append(ImageURLContentBlockParam(image_url=ImageURLParam(url=photo, detail="low"), type="image_url"))
+            content.append({"type": "image_url", "image_url": {"url": photo}})
+
+
+        print(str(content))
+
 
         message = self.client.beta.threads.messages.create(
             thread_id=self.thread.id,
             role="user",
-            content=content
+            content=str(content)
         )
 
 
@@ -99,7 +100,6 @@ class OpenAI_API:
         self.run = self.client.beta.threads.runs.create(
             thread_id=self.thread.id,
             assistant_id=self.assistant.id,
-            truncation_strategy= {"type": "last_messages", "last_messages": 10}
         )
 
         while self.run.status != "completed":
@@ -115,6 +115,9 @@ class OpenAI_API:
                 if not self.run.required_action:
                     logging.info("Requested action but no action was provided")
                     time.sleep(0.5)
+
+                print(self.run.required_action)
+                print(self.functions.process_required_actions(self.run.required_action))
 
                 self.client.beta.threads.runs.submit_tool_outputs(
                     run_id=self.run.id,
@@ -146,3 +149,29 @@ class OpenAI_API:
 
     def get_usage(self):
         return self.client.organization
+
+    def simple_completion(self, instruction, message, model ="gpt-4o-mini", schema = None):
+
+        completion = None
+
+        if schema is None:
+            completion = self.client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "developer", "content": instruction},
+                    {"role": "user", "content": message}
+                ],
+            )
+
+        else:
+            completion = self.client.beta.chat.completions.parse(
+                model=model,
+                messages=[
+                    {"role": "developer", "content": instruction},
+                    {"role": "user", "content": message}
+                ],
+                response_format=schema
+            )
+
+        return completion.choices[0].message
+
