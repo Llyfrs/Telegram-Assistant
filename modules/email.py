@@ -1,6 +1,5 @@
+import asyncio
 import logging
-from http.client import responses
-from pyexpat.errors import messages
 from time import sleep
 
 import telegram
@@ -10,10 +9,7 @@ import os
 from telegramify_markdown import markdownify
 
 import openai_api
-
 from pydantic import BaseModel
-
-from modules.database import ValkeyDB
 
 
 class Email:
@@ -147,7 +143,7 @@ async def email_updates(bot: telegram.Bot, chat_id: str):
         except Exception as e:
             await bot.send_message(
                 chat_id=chat_id,
-                text=f"Error: {e}"
+                text=f"Email Error: {e}"
             )
 
-        sleep(60)
+        await asyncio.sleep(60)

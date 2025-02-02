@@ -278,8 +278,6 @@ def get_current_time():
 # NOTE: it is actually possible to update commands only for specific chat, interesting indeed
 async def load_commands():
     await telegram.Bot.set_my_commands(application.bot, [
-        ("toggle_retrieval", "Toggles retrieval mode"),
-        ("toggle_debug", "Toggles debug mode"),
         ("clear_thread", "Clears the thread"),
         ("toggle_model", "Toggles model between GPT4 and GPT4o-mini"),
         ("set_wolframalpha_app_id", "Sets WolframAlpha app id"),
@@ -288,7 +286,12 @@ async def load_commands():
         ("stock", "Stock"),
         ("stacking", "Toggles stacking mode, preventing notifications for full energy bar"),
         ("get_link", "Returns link to the bot"),
-        ("bounty", "Starts bounty monitor")
+        ("bounty", "Starts bounty monitor"),
+        ("settings", "Settings"),
+        ("set_timezone", "Sets timezone"),
+        ("next", "Next lesson"),
+        ("now", "Current lesson"),
+        ("time_table", "Manage your time table")
     ])
 
 
@@ -302,8 +305,6 @@ if __name__ == '__main__':
     application.add_handler(settings_handler())
 
     application.add_handler(MessageHandler((filters.TEXT | filters.PHOTO) & ~filters.COMMAND, assistant))
-    application.add_handler(CommandHandler("toggle_retrieval", toggle_retrieval))
-    application.add_handler(CommandHandler("toggle_debug", toggle_debug))
     application.add_handler(CommandHandler("clear_thread", clear_thread))
     application.add_handler(CommandHandler("toggle_model", toggle_model))
     application.add_handler(CommandHandler("set_wolframalpha_app_id", set_wolframalpha_app_id))
@@ -361,7 +362,6 @@ if __name__ == '__main__':
     client.add_function(save_section, "save_section", "Saves section to markdown file, (Overrides the existing one)")
     client.add_function(add_section, "add_section", "Adds section to markdown file at its end")
     client.add_function(create_file, "create_file", "Creates file in files directory")
-
 
 
     client.create()
