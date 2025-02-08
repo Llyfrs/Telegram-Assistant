@@ -472,40 +472,40 @@ class Torn:
                 logging.info(f"New bounty found: {bounty.get('name')} with ${bounty.get('reward')}, creating watcher")
                 asyncio.run_coroutine_threadsafe(self.watch_player_bounty(bounty), asyncio.get_event_loop())
 
+
     async def watch_player_bounty(self, player_info):
+        ## How long before the player leaves hospital should the bot send the message
+        limit = 60
 
-        limit = 180
+        now = time.time()
+        hospital = player_info.get("states").get("hospital_timestamp")
 
-        while True:
+        await asyncio.sleep(hospital - now - limit)
 
-            logging.info(f"Watching {player_info.get('name')}")
+        user_info = await self.get_basic_user(player_info.get("player_id"))
 
-            now = time.time()
-            hospital = player_info.get("states").get("hospital_timestamp")
+        ## User no loger has a bounty on them
+        if user_info.get("basicicons").get("icon13") is None:
+            return
 
+        ## User is in hospital but the hospitalization time increased (probably got attacked or selfhosped)
+        ## Spawns new watcher
+        if user_info.get("states").get("hospital_timestamp") > limit*2:
+            player_info["states"] = user_info.get("states")
+            asyncio.run_coroutine_threadsafe(self.watch_player_bounty(player_info), asyncio.get_event_loop())
+            return
 
-            if hospital - limit < now:
-                user_info = await self.get_basic_user(player_info.get("player_id"))
-
-                if user_info.get("states").get("hospital_timestamp") == 0:
-                    break
-
-                if user_info.get("basicicons").get("icon13") is None:
-                    break
-
-                reward = "${:,.0f}".format(player_info.get("reward"))
-                message = await self.send(
-                    f"{user_info.get('name')} is about to leave hospital with a bounty of {reward}. "
-                    f"[Attack](https://www.torn.com/loader.php?sid=attack&user2ID={player_info.get('player_id')})")
+        reward = "${:,.0f}".format(player_info.get("reward"))
+        message = await self.send(
+            f"{user_info.get('name')} is about to leave hospital with a bounty of {reward}. "
+            f"[Attack](https://www.torn.com/loader.php?sid=attack&user2ID={player_info.get('player_id')})")
 
 
-                await asyncio.sleep(limit)
-                await message.delete()
-                break
+        ## Delete message when user leaves hospital (not relevant anymore)
+        await asyncio.sleep(limit)
+        await message.delete()
 
-            await asyncio.sleep(60)
 
-        pass
 
 
     ##warper
