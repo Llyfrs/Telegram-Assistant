@@ -474,7 +474,7 @@ class Torn:
 
     async def watch_player_bounty(self, player_info):
         ## How long before the player leaves hospital should the bot send the message
-        limit = 60
+        limit = 80
 
         now = time.time()
         hospital = player_info.get("states").get("hospital_timestamp")
