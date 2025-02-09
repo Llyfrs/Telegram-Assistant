@@ -103,9 +103,13 @@ class Torn:
 
         while response.get("error") is not None:
 
-            await self.send("Torn API error: {0}".format(response.get("error").get("error")))
-            logging.error("Torn API error: {0}".format(response.get("error").get("error")))
+
+            ## 5 is the error code for when API key runs out of requests, we can wait for it to reset, otherwise we just break and log the error
             if response.get("error").get("code") != 5:
+
+                await self.send("Torn API error: {0}".format(response.get("error").get("error")))
+                logging.error("Torn API error: {0}".format(response.get("error").get("error")))
+
                 break
 
             response = requests.get(url).json()

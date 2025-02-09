@@ -4,3 +4,4 @@ reminders.pickle
 settings.pickle
 /venv/
 /.venv/
+credentials.json
