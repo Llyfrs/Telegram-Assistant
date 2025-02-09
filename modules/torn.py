@@ -503,6 +503,8 @@ class Torn:
             f"[Attack](https://www.torn.com/loader.php?sid=attack&user2ID={player_info.get('player_id')})")
 
 
+        logging.info(f"Time to send message: {time.time() - now}")
+
         ## Delete message when user leaves hospital (not relevant anymore)
         await asyncio.sleep(limit)
         await message.delete()
