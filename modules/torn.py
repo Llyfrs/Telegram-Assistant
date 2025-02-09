@@ -481,6 +481,9 @@ class Torn:
 
         await asyncio.sleep(hospital - now - limit)
 
+        logging.info(f"Expected wait time: {hospital - now - limit}")
+        logging.info(f"Actual wait time: {time.time() - now}")
+
         user_info = await self.get_basic_user(player_info.get("player_id"))
 
         ## User no loger has a bounty on them
@@ -489,7 +492,7 @@ class Torn:
 
         ## User is in hospital but the hospitalization time increased (probably got attacked or selfhosped)
         ## Spawns new watcher
-        if user_info.get("states").get("hospital_timestamp") > limit*2:
+        if user_info.get("states").get("hospital_timestamp") != hospital:
             player_info["states"] = user_info.get("states")
             asyncio.run_coroutine_threadsafe(self.watch_player_bounty(player_info), asyncio.get_event_loop())
             return
