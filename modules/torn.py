@@ -103,8 +103,8 @@ class Torn:
 
         while response.get("error") is not None:
 
-            await self.send(f"Torn API error: {0}".format(response.get("error").get("error")))
-            logging.error(f"Torn API error: {0}".format(response.get("error").get("error")))
+            await self.send("Torn API error: {0}".format(response.get("error").get("error")))
+            logging.error("Torn API error: {0}".format(response.get("error").get("error")))
             if response.get("error").get("code") != 5:
                 break
 
@@ -464,13 +464,8 @@ class Torn:
         self.discovered_bounties = update_discovered
 
         for bounty in new_bounties:
-            if bounty.get("states").get("hospital_timestamp") == 0:
-                await self.send(f"{bounty.get('name')} is out of hospital with a bounty of ${bounty.get('reward')}. "
-                                f"[Attack](https://www.torn.com/loader.php?sid=attack&user2ID={bounty.get('player_id')})")
-
-            else:
-                logging.info(f"New bounty found: {bounty.get('name')} with ${bounty.get('reward')}, creating watcher")
-                asyncio.run_coroutine_threadsafe(self.watch_player_bounty(bounty), asyncio.get_event_loop())
+            logging.info(f"New bounty found: {bounty.get('name')} with ${bounty.get('reward')}, creating watcher")
+            asyncio.run_coroutine_threadsafe(self.watch_player_bounty(bounty), asyncio.get_event_loop())
 
 
     async def watch_player_bounty(self, player_info):
