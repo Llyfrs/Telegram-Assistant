@@ -474,7 +474,7 @@ class Torn:
 
     async def watch_player_bounty(self, player_info):
         ## How long before the player leaves hospital should the bot send the message
-        limit = 80
+        limit = 60
 
         now = time.time()
         hospital = player_info.get("states").get("hospital_timestamp")
@@ -500,7 +500,8 @@ class Torn:
         reward = "${:,.0f}".format(player_info.get("reward"))
         message = await self.send(
             f"{user_info.get('name')} is about to leave hospital with a bounty of {reward}. "
-            f"[Attack](https://www.torn.com/loader.php?sid=attack&user2ID={player_info.get('player_id')})")
+            f"[Attack](https://www.torn.com/loader.php?sid=attack&user2ID={player_info.get('player_id')})",
+            clean=False)
 
 
         logging.info(f"Time to send message: {time.time() - now}")
