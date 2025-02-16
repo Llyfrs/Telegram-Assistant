@@ -510,9 +510,6 @@ class Torn:
         await asyncio.sleep(limit)
         await message.delete()
 
-
-
-
     ##warper
 
     @logg_error
