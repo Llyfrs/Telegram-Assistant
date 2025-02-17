@@ -1,6 +1,5 @@
 import logging
 import os
-from nis import match
 
 import valkey
 import pickle

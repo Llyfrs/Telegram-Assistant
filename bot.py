@@ -11,7 +11,10 @@ from pyexpat.errors import messages
 import pytz
 import telegram
 import telegramify_markdown
-from telegram import Update, Message, helpers, InlineKeyboardMarkup, InlineKeyboardButton
+from telebot.types import Update, Message, InlineKeyboardMarkup, InlineKeyboardButton
+
+from telegram import helpers
+
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
 
 from conversations.settings import settings_handler
