@@ -2,6 +2,7 @@
 
 import asyncio
 import datetime
+import json
 import logging
 import os
 import time
@@ -17,8 +18,11 @@ from telegram import helpers
 
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
 
-from conversations.settings import settings_handler
-from conversations.time_table import time_table_handler
+from commands.auth import calendar_auth_handler
+from commands.settings import settings_handler
+from commands.time_table import time_table_handler
+from hacks.CustomeAplicationBuilder import CustomApplicationBuilder
+from modules.calendar import Calendar
 from modules.database import ValkeyDB
 
 import openai_api
@@ -31,6 +35,10 @@ from modules.torn import Torn
 from modules.wolfamalpha import calculate
 from modules.files import load_file, save_file, delete_file, get_sections, get_section, list_files, save_section, \
     add_section, create_file
+
+
+from telegram.ext import Application, CommandHandler
+from commands.command import Command
 
 
 logging.getLogger("httpx").setLevel(logging.ERROR)
@@ -50,7 +58,6 @@ costs = {
 ## Interesting concept, for adding controls right in to messages
 ## Unfortunately it seems to only call the start function and needs to be used with
 ## application.add_handler(CommandHandler("start", deep_linked_level_4, filters.Regex(USING_KEYBOARD)))
-
 async def get_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = helpers.create_deep_linked_url(context.bot.username , "test")
     await update.message.reply_text(url)
@@ -99,6 +106,7 @@ async def clear_thread(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """ Clears the thread """
     client.clear_thread()
     await update.message.reply_text(f"Thread cleared")
+
 
 
 async def live_message( update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -283,12 +291,16 @@ async def load_commands():
 
 
 if __name__ == '__main__':
-    application = ApplicationBuilder().token(os.environ.get("TELEGRAM_KEY")).pool_timeout(10).build()
+    application = CustomApplicationBuilder().token(os.environ.get("TELEGRAM_KEY")).pool_timeout(10).build()
 
     application.bot_data["settings"] = Settings("settings.pickle")
 
+    creds = json.loads(ValkeyDB().get("callendar_credentials"))
+    application.bot_data["calendar"] = Calendar(creds)
+
     application.add_handler(time_table_handler())
     application.add_handler(settings_handler())
+    application.add_handler(calendar_auth_handler())
 
     application.add_handler(MessageHandler((filters.TEXT | filters.PHOTO) & ~filters.COMMAND, assistant))
     application.add_handler(CommandHandler("clear_thread", clear_thread))
@@ -303,6 +315,7 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler("set_timezone", set_timezone))
     application.add_handler(CommandHandler("next", next))
     application.add_handler(CommandHandler("now", now))
+
 
 
 

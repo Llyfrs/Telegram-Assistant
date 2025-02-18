@@ -2,7 +2,7 @@ from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ConversationHandler, CommandHandler, CallbackQueryHandler, ContextTypes
 
 from modules.database import ValkeyDB
-from conversations.time_table import cancel
+from commands.time_table import cancel
 
 class SettingsEnum:
     DEBUG = "debug"

@@ -9,12 +9,15 @@ from googleapiclient.discovery import Resource
 from modules.database import ValkeyDB
 
 
-class Callendar:
+class Calendar:
 
     def __init__(self, credentials, token=None):
+
+
         self.credentials = credentials
         self.token = token
         self.SCOPES = ['https://www.googleapis.com/auth/calendar']
+
         pass
 
     def get_auth_link(self):
@@ -75,7 +78,7 @@ if __name__ == "__main__":
     creds = ValkeyDB().get("callendar_credentials")
     creds = json.loads(creds)
 
-    callendar = Callendar(creds)
+    callendar = Calendar(creds)
     print(callendar.get_auth_link())
 
     code = input("Enter code: ")
@@ -84,7 +87,7 @@ if __name__ == "__main__":
 
     ValkeyDB().set_serialized("callendar_token", token)
 
-    events = callendar.get_events(token)
+    events = callendar.get_events()
 
     for event in events:
         print(event['summary'])

@@ -1,9 +1,7 @@
 import logging
 import re
 from datetime import datetime
-from unicodedata import lookup
 
-import pytz
 import telegramify_markdown
 
 from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
