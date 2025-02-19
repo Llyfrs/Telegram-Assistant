@@ -14,7 +14,7 @@ class CustomApplicationBuilder(ApplicationBuilder):
         command_list = []
         for name, cmd_cls in Command.commands.items():
             cmd_cls.handler(app)
-            if issubclass(cmd_cls, Command):
+            if issubclass(cmd_cls, Command) and cmd_cls.register:
                 command_list.append((name, cmd_cls.get_description()))
 
         # Set bot commands in Telegram UI

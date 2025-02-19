@@ -2,14 +2,20 @@
 
 import asyncio
 import datetime
+## For commands to be loaded they need to be imported
+## You could do it by hand (import commands.command_name)
+## You could do it with __init__.py file in commands directory and then just do from commands import *
+## But I don't like having to go somewhere after I create command and write it, so I import anything in commands directory including subdirectories
+import glob
+import importlib
 import json
 import logging
+import os
 
 import pytz
-import telegramify_markdown
 from telebot.types import Update
 from telegram import helpers
-from telegram.ext import ContextTypes, MessageHandler, filters
+from telegram.ext import ContextTypes
 
 import openai_api
 from commands.auth import calendar_auth_handler
@@ -23,15 +29,10 @@ from modules.files import load_file, save_file, delete_file, get_sections, get_s
     add_section, create_file
 from modules.reminder import Reminders, calculate_seconds, seconds_until
 from modules.timetable import TimeTable
-from modules.tools import debug
 from modules.torn import Torn
 from modules.wolfamalpha import calculate
 
-## For commands to be loaded they need to be imported
-## You could do it by hand (import commands.command_name)
-## You could do it with __init__.py file in commands directory and then just do from commands import *
-## But I don't like having to go somewhere after I create command and write it, so I import anything in commands directory including subdirectories
-import importlib, glob, os; [importlib.import_module(os.path.relpath(f, os.getcwd()).replace(os.path.sep, ".")[:-3]) for f in glob.glob("commands/**/*.py", recursive=True) if os.path.basename(f) != "__init__.py"]
+[importlib.import_module(os.path.relpath(f, os.getcwd()).replace(os.path.sep, ".")[:-3]) for f in glob.glob("commands/**/*.py", recursive=True) if os.path.basename(f) != "__init__.py"]
 
 logging.getLogger("httpx").setLevel(logging.ERROR)
 logging.basicConfig(
@@ -42,11 +43,6 @@ logging.basicConfig(
 chat_id = None
 ct = None
 
-costs = {
-    "gpt-4o": 0.00500 / 1000,
-    "gpt-4o-mini": 0.000150 / 1000,
-}
-
 ## Interesting concept, for adding controls right in to messages
 ## Unfortunately it seems to only call the start function and needs to be used with
 ## application.add_handler(CommandHandler("start", deep_linked_level_4, filters.Regex(USING_KEYBOARD)))
@@ -56,73 +52,6 @@ async def get_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def set_timezone(update: Update, context: ContextTypes.DEFAULT_TYPE):
     pass
-
-
-async def assistant(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    reminder.chat_id = update.effective_chat.id
-
-    ## Change status to typing
-    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
-
-    print(update)
-
-    photos = []
-    if len(update.message.photo):
-        photo = update.message.photo[-1]
-        file = await context.bot.get_file(photo.file_id)# Renamed to clarify
-        photos.append(file.file_path)
-
-    message = update.message.text
-
-    if len(photos) != 0:
-        logging.info(f"User sent {len(photos)} photos")
-        message = update.message.caption
-
-    client.add_message( f"{get_current_time()['current_time']}: {message}", photos)
-
-    steps = client.run_assistant()
-
-    db = ValkeyDB()
-
-    if db.get_serialized("debug", False):
-
-        cost = client.last_run_cost
-        dollar_cost = costs[client.model] * cost.total_tokens
-
-        long_time_cost = db.get_serialized("cost", 0)
-        if long_time_cost is None:
-            long_time_cost = 0
-
-        db.set_serialized("cost", long_time_cost + dollar_cost)
-
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=f"{cost.total_tokens} tokens used for price of ${round(dollar_cost,5)}")
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Total cost: ${round(long_time_cost + dollar_cost, 5)}")
-
-        for dbg_msg in debug(steps):
-
-            logging.info(dbg_msg)
-            # TODO this need to be fixed ffs it's so ugly
-            if dbg_msg == "":
-                continue
-
-            await context.bot.send_message(chat_id=update.effective_chat.id, text=dbg_msg, parse_mode="MarkdownV2")
-
-    # Sometimes the run is finished but the new message didn't arrive yet
-    # so this will make sure we won't miss it
-    messages = client.get_new_messages()
-    while len(messages.data) == 0:
-        messages = client.get_new_messages()
-        return
-
-    for message in messages:
-        for content in message.content:
-            if content.type == "text":
-
-                await context.bot.send_message(chat_id=update.effective_chat.id, text=telegramify_markdown.markdownify(content.text.value), parse_mode="MarkdownV2")
-
-            if content.type == "image_file":
-                content = client.client.files.content(file_id=content.image_file.file_id)
-                await context.bot.send_photo(chat_id=update.effective_chat.id, photo=content)
 
 
 def get_current_time():
@@ -148,8 +77,6 @@ if __name__ == '__main__':
     application.add_handler(time_table_handler())
     application.add_handler(calendar_auth_handler())
 
-    application.add_handler(MessageHandler((filters.TEXT | filters.PHOTO) & ~filters.COMMAND, assistant))
-
     ## loop = asyncio.get_event_loop()
     ## loop.run_until_complete(load_commands())
 
@@ -168,6 +95,7 @@ if __name__ == '__main__':
 
     reminder = Reminders(application.bot)
 
+    application.bot_data["reminder"] = reminder
 
     application.bot_data["timetable"] = TimeTable(pytz.timezone('CET'))
 

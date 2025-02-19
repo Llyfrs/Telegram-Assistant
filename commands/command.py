@@ -35,6 +35,7 @@ class Command(metaclass=CommandMeta):
     """Base command class with automatic registration"""
     command_name: str  # Will be set by metaclass
     commands: Dict[str, Type[CommandType]] = None
+    register = True
 
     @classmethod
     def handler(cls, app: Application) -> None:
