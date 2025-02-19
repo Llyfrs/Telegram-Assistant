@@ -1,11 +1,13 @@
+import datetime
 import logging
 
+import pytz
 import telegramify_markdown
 from telegram import Update
 from telegram.constants import ChatAction
 from telegram.ext import ContextTypes, filters, MessageHandler
 
-from bot import get_current_time
+
 from commands.command import Command
 from modules.database import ValkeyDB
 from modules.tools import debug
@@ -14,6 +16,16 @@ costs = {
     "gpt-4o": 0.00500 / 1000,
     "gpt-4o-mini": 0.000150 / 1000,
 }
+
+## TODO: Move this to a separate file at some point, it's here to just clean up the main file
+def get_current_time():
+
+    cet = pytz.timezone('CET')
+    current_time_and_date = datetime.datetime.now(cet)
+    current_time_and_date = current_time_and_date.strftime("%H:%M:%S %d/%m/%Y")
+
+    print("Returning time: " + str(current_time_and_date))
+    return {"current_time": current_time_and_date}
 
 class Assistant(Command):
     register = False

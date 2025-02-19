@@ -2,10 +2,6 @@
 
 import asyncio
 import datetime
-## For commands to be loaded they need to be imported
-## You could do it by hand (import commands.command_name)
-## You could do it with __init__.py file in commands directory and then just do from commands import *
-## But I don't like having to go somewhere after I create command and write it, so I import anything in commands directory including subdirectories
 import glob
 import importlib
 import json
@@ -13,11 +9,8 @@ import logging
 import os
 
 import pytz
-from telebot.types import Update
-from telegram import helpers
-from telegram.ext import ContextTypes
-
 import openai_api
+from commands.assistant.assistant import get_current_time
 from commands.auth import calendar_auth_handler
 from commands.time_table.time_table import time_table_handler
 from hacks.CustomeAplicationBuilder import CustomApplicationBuilder
@@ -32,6 +25,11 @@ from modules.timetable import TimeTable
 from modules.torn import Torn
 from modules.wolfamalpha import calculate
 
+
+## For commands to be loaded they need to be imported
+## You could do it by hand (import commands.command_name)
+## You could do it with __init__.py file in commands directory and then just do from commands import *
+## But I don't like having to go somewhere after I create command and write it, so I import anything in commands directory including subdirectories
 [importlib.import_module(os.path.relpath(f, os.getcwd()).replace(os.path.sep, ".")[:-3]) for f in glob.glob("commands/**/*.py", recursive=True) if os.path.basename(f) != "__init__.py"]
 
 logging.getLogger("httpx").setLevel(logging.ERROR)
@@ -42,29 +40,6 @@ logging.basicConfig(
 
 chat_id = None
 ct = None
-
-## Interesting concept, for adding controls right in to messages
-## Unfortunately it seems to only call the start function and needs to be used with
-## application.add_handler(CommandHandler("start", deep_linked_level_4, filters.Regex(USING_KEYBOARD)))
-async def get_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    url = helpers.create_deep_linked_url(context.bot.username , "test")
-    await update.message.reply_text(url)
-
-async def set_timezone(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    pass
-
-
-def get_current_time():
-
-    cet = pytz.timezone('CET')
-    current_time_and_date = datetime.datetime.now(cet)
-    current_time_and_date = current_time_and_date.strftime("%H:%M:%S %d/%m/%Y")
-
-    print("Returning time: " + str(current_time_and_date))
-    return {"current_time": current_time_and_date}
-
-
-
 
 if __name__ == '__main__':
     application = CustomApplicationBuilder().token(os.environ.get("TELEGRAM_KEY")).pool_timeout(10).build()
@@ -96,7 +71,6 @@ if __name__ == '__main__':
     reminder = Reminders(application.bot)
 
     application.bot_data["reminder"] = reminder
-
     application.bot_data["timetable"] = TimeTable(pytz.timezone('CET'))
 
     asyncio.run_coroutine_threadsafe(email_updates(application.bot, chat_id), loop)
