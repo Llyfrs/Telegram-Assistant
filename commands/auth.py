@@ -1,7 +1,7 @@
 from telegram import Update
 from telegram.ext import ContextTypes, CommandHandler, ConversationHandler, MessageHandler, filters
 
-from commands.time_table import cancel
+from commands.time_table.time_table import cancel
 from modules.calendar import Calendar
 
 GET_TOKEN = 0

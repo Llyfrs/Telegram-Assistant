@@ -39,16 +39,27 @@ class Command(metaclass=CommandMeta):
     @classmethod
     def handler(cls, app: Application) -> None:
         """Register the handler with the application"""
-        raise NotImplementedError("Subclasses must implement handler method")
+        app.add_handler(
+            CommandHandler(cls.command_name, cls.handle)
+        )
+
 
     @classmethod
     def get_description(cls) -> str:
         """Get command description from docstring"""
         return getdoc(cls) or ""
 
-    @staticmethod
-    async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    @classmethod
+    async def handle(cls, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """For simple commands, that don't start conversations, handless it's onw function name if it can be"""
         pass
 
 
+
+def command(func):
+    """Decorator to convert a function into a Command class"""
+    name = func.__name__.capitalize()  # Capitalize function name
+    return type(name, (Command,), {
+        "__doc__": func.__doc__,
+        "handle": classmethod(lambda cls, update, context: func(update, context)),
+    })

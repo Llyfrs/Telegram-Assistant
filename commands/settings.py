@@ -1,58 +1,93 @@
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
-from telegram.ext import ConversationHandler, CommandHandler, CallbackQueryHandler, ContextTypes
-
+from telegram.ext import ConversationHandler, CommandHandler, CallbackQueryHandler, ContextTypes, Application
+from commands.command import Command
+from commands.time_table.time_table import cancel
 from modules.database import ValkeyDB
-from commands.time_table import cancel
 
-class SettingsEnum:
+
+# Constants for cleaner code
+class SettingsState:
+    SETTINGS_MENU = 0
+
+
+class SettingsKey:
     DEBUG = "debug"
     RETRIEVAL = "retrieval"
+    CANCEL = "cancel"
 
 
-def generate_keyboard():
-    db = ValkeyDB()
-
-    keyboard = []
-
-    keyboard.append([ InlineKeyboardButton(text=f"Debug: {db.get_serialized(SettingsEnum.DEBUG)}", callback_data=SettingsEnum.DEBUG)])
-    keyboard.append([ InlineKeyboardButton(text=f"Retrieval: {db.get_serialized(SettingsEnum.RETRIEVAL)}", callback_data=SettingsEnum.RETRIEVAL)])
-
-    keyboard.append([InlineKeyboardButton(text="Cancel",callback_data="cancel")])
-
-    return InlineKeyboardMarkup(keyboard)
+# Define all settings and their display names
+SETTINGS = [
+    ("Debug", SettingsKey.DEBUG),
+    ("Retrieval", SettingsKey.RETRIEVAL)
+]
 
 
-async def enter(update: Update, context: ContextTypes.DEFAULT_TYPE):
+class SettingsHandler:
+    @staticmethod
+    def generate_settings_keyboard():
+        """Dynamically generate keyboard based on current settings"""
+        db = ValkeyDB()
+        keyboard = []
 
-    query = update.callback_query
+        for display_name, setting_key in SETTINGS:
+            current_value = db.get_serialized(setting_key, False)
+            keyboard.append([InlineKeyboardButton(
+                text=f"{display_name}: {current_value}",
+                callback_data=setting_key
+            )])
 
-    if query is not None:
+        keyboard.append([InlineKeyboardButton("Cancel", callback_data=SettingsKey.CANCEL)])
+        return InlineKeyboardMarkup(keyboard)
+
+    @staticmethod
+    async def start_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Entry point for settings command"""
+        await update.message.reply_text(
+            "Click to toggle settings:",
+            reply_markup=SettingsHandler.generate_settings_keyboard()
+        )
+        return SettingsState.SETTINGS_MENU
+
+    @staticmethod
+    async def handle_setting_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle toggle actions and menu navigation"""
+        query = update.callback_query
         await query.answer()
 
-        if query.data == SettingsEnum.DEBUG:
-            db = ValkeyDB()
-            db.set_serialized("debug", not db.get_serialized("debug", False))
-
-        if query.data == SettingsEnum.RETRIEVAL:
-            db = ValkeyDB()
-            db.set_serialized("retrieval", not db.get_serialized("retrieval", False))
-
-        if query.data == "cancel":
+        if query.data == SettingsKey.CANCEL:
             await query.delete_message()
-            return -1
+            return ConversationHandler.END
 
-        await query.edit_message_text("Click to toggle settings", reply_markup=generate_keyboard())
+        # Toggle the setting if it's a valid setting key
+        if any(query.data == setting[1] for setting in SETTINGS):
+            db = ValkeyDB()
+            current_value = db.get_serialized(query.data, False)
+            db.set_serialized(query.data, not current_value)
+
+        # Update the message with fresh keyboard
+        await query.edit_message_text(
+            "Click to toggle settings:",
+            reply_markup=SettingsHandler.generate_settings_keyboard()
+        )
+        return SettingsState.SETTINGS_MENU
+
+    @staticmethod
+    def get_conversation_handler():
+        """Return configured conversation handler"""
+        return ConversationHandler(
+            entry_points=[CommandHandler("settings", SettingsHandler.start_settings)],
+            states={
+                SettingsState.SETTINGS_MENU: [
+                    CallbackQueryHandler(SettingsHandler.handle_setting_toggle)
+                ]
+            },
+            fallbacks=[CommandHandler("cancel", cancel)],
+            map_to_parent={ConversationHandler.END: -1}
+        )
 
 
-    await update.message.reply_text("Click to toggle settings", reply_markup=generate_keyboard())
-    return 0
-
-
-def settings_handler():
-    return ConversationHandler(
-        entry_points=[CommandHandler("settings", enter)],
-        states={
-            0: [CallbackQueryHandler(enter)]
-        },
-        fallbacks=[CommandHandler("cancel", cancel)]
-    )
+class Settings(Command):
+    @classmethod
+    def handler(cls, app: Application) -> None:
+        app.add_handler(SettingsHandler.get_conversation_handler())
