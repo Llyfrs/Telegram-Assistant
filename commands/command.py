@@ -7,11 +7,6 @@ from telegram.ext import Application, ApplicationBuilder, CommandHandler, Contex
 
 CommandType = TypeVar('CommandType', bound='Command')
 
-
-
-
-
-
 class CommandMeta(type):
     """Metaclass to auto-register commands and convert class names to snake_case."""
 
