@@ -4,6 +4,7 @@ import logging
 from telegram.ext import Application, ApplicationBuilder
 
 from commands.command import Command
+from watchers.watcher import Watcher
 
 
 class CustomApplicationBuilder(ApplicationBuilder):
@@ -22,6 +23,10 @@ class CustomApplicationBuilder(ApplicationBuilder):
             logging.info(f"Setting commands: {command_list}")
             loop = asyncio.get_event_loop()
             loop.run_until_complete(app.bot.set_my_commands(command_list))
+
+
+        for name in Watcher.watchers:
+            Watcher.watchers[name].setup(app)
 
 
 

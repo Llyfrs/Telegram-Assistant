@@ -1,8 +1,11 @@
+import json
+
 from telegram import Update
 from telegram.ext import ContextTypes, CommandHandler, ConversationHandler, MessageHandler, filters
 
 from commands.time_table.time_table import cancel
 from modules.calendar import Calendar
+from modules.database import ValkeyDB
 
 GET_TOKEN = 0
 
@@ -29,6 +32,8 @@ async def get_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if calendar.is_token_valid():
         context.bot_data["calendar"] = calendar
+        ValkeyDB().set_serialized("calendar_token", token)
+
         await update.message.reply_text("Token is valid and saved")
     else:
         await update.message.reply_text("Token is invalid run /calendar again")

@@ -4,7 +4,6 @@ from datetime import datetime
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
-from googleapiclient.discovery import Resource
 
 from modules.database import ValkeyDB
 
@@ -21,7 +20,6 @@ class Calendar:
         pass
 
     def get_auth_link(self):
-
 
         flow = InstalledAppFlow.from_client_config(
             self.credentials,
@@ -64,6 +62,29 @@ class Calendar:
         events = events_result.get('items', [])
 
         return events
+
+    ## https://developers.google.com/calendar/api/v3/reference/events/insert
+    def add_event(self, start :datetime, end :datetime, summary, description=None, location=None):
+        service = build('calendar', 'v3', credentials=self.token)
+
+        event = {
+            'summary': summary,
+            'description': description
+        }
+
+        if location:
+            event['location'] = location
+
+        event['start'] = {
+            'dateTime': start.isoformat(),
+        }
+
+        if end:
+            event['end'] = {
+                'dateTime': end.isoformat(),
+            }
+
+        service.events().insert(calendarId='primary', body=event).execute()
 
 
 

@@ -68,6 +68,7 @@ class Email:
                 response : EmailResponse = self.client.simple_completion(
                     instruction="Summarize the email (in it's original language) as much as possible the summary just needs to give overview not pass over all information. "
                                 "If the email seems suspicious or it's advertisement mark it as spam and don't provide a summary. "
+                                "If the email contains any events with dates and times, provide the event details."
                                 "You are free to use markdown to format the response.",
                     message=f'{e.subject} {e.text}',
                     schema=EmailResponse
@@ -82,6 +83,12 @@ class Email:
         return summary
 
 
+class Event(BaseModel):
+    title: str
+    description: str
+    start: Optional[str] = Field(default=None, json_schema_extra={'type': ['string', 'null'], 'description': 'Date and time in ISO format'})
+    end: Optional[str] = Field(default=None, json_schema_extra={'type': ['string', 'null'], 'description': 'Date and time in ISO format'})
+
 # Custom schema generator
 ## This is interesting, so two things here.
 ## The openAI doesn't accept schema that has anyOf values in it, and that is what get's generated when you use Optional or | in pydantic.
@@ -93,75 +100,7 @@ class EmailResponse(BaseModel):
     spam: bool
     summary: Optional[str] = Field(default=None, json_schema_extra={'type': ['string', 'null']})
     important: bool
-
-
-
-async def email_updates(bot: telegram.Bot, chat_id: str):
-    email = Email(
-        os.getenv("EMAIL"),
-        os.getenv("EMAIL_PASSWORD"),
-        os.getenv("IMAP_SERVER"),
-        os.getenv("IMAP_PORT")
-    )
-
-
-    ## Definitely very individual to the user, should probably be latter moved to settings
-    email.set_spam_folder("AI Spam")
-    email.add_excluded_folder("AI Spam")
-    email.add_excluded_folder("spam")
-    email.add_excluded_folder("trash")
-    email.add_excluded_folder("Administrativa")
-
-    logging.info("Email bot started")
-
-    errors = 0
-
-    while True:
-        try:
-            summary = email.summarize_new()
-
-            if len(summary) > 0:
-                logging.info(f"Processing {len(summary)} new emails")
-
-            for e, response in summary:
-
-                if response.spam:
-                    continue
-
-                message = "📨 *Email Received* \n\n"
-
-                if response.important:
-                    message = "⚠️ *Important Email* \n\n"
-
-                message += (
-                    f"📩 *From:* `{e.from_}`\n"
-                    f"📋 *Subject:* _{e.subject}_\n\n"
-                    f"📝 *Summary*\n"
-                    f"\n{response.summary}\n\n"
-                )
-
-                if len(e.attachments) > 0:
-                    message += "📎 *Attachments*\n"
-
-                for attachment in e.attachments:
-                    message += f"• `{attachment.filename}`\n"
-
-                await bot.send_message(
-                    chat_id=chat_id,
-                    text=markdownify(message),
-                    parse_mode="MarkdownV2"
-                )
-
-        except Exception as e:
-            logging.error(f"Email Error: {e}")
-            errors += 1
-
-            if errors > 3:
-                logging.error("Too many errors pausing email bot")
-                await asyncio.sleep(60 * 10)
-
-
-        await asyncio.sleep(100)
+    event: Optional[Event] = Field(default=None, json_schema_extra={'type': ['object', 'null']})
 
 
 if __name__ == "__main__":

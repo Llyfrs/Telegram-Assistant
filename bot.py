@@ -9,6 +9,9 @@ import logging
 import os
 
 import pytz
+import telegram.ext
+from telegram.ext import Defaults
+
 import openai_api
 from commands.assistant.assistant import get_current_time
 from commands.auth import calendar_auth_handler
@@ -17,7 +20,6 @@ from hacks.CustomeAplicationBuilder import CustomApplicationBuilder
 from modules.Settings import Settings
 from modules.calendar import Calendar
 from modules.database import ValkeyDB
-from modules.email import email_updates
 from modules.files import load_file, save_file, delete_file, get_sections, get_section, list_files, save_section, \
     add_section, create_file
 from modules.reminder import Reminders, calculate_seconds, seconds_until
@@ -32,6 +34,8 @@ from modules.wolfamalpha import calculate
 ## But I don't like having to go somewhere after I create command and write it, so I import anything in commands directory including subdirectories
 [importlib.import_module(os.path.relpath(f, os.getcwd()).replace(os.path.sep, ".")[:-3]) for f in glob.glob("commands/**/*.py", recursive=True) if os.path.basename(f) != "__init__.py"]
 
+[importlib.import_module(os.path.relpath(f, os.getcwd()).replace(os.path.sep, ".")[:-3]) for f in glob.glob("watchers/**/*.py", recursive=True) if os.path.basename(f) != "__init__.py"]
+
 logging.getLogger("httpx").setLevel(logging.ERROR)
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -42,12 +46,28 @@ chat_id = None
 ct = None
 
 if __name__ == '__main__':
-    application = CustomApplicationBuilder().token(os.environ.get("TELEGRAM_KEY")).pool_timeout(10).build()
+
+    defaults = Defaults(tzinfo=pytz.timezone('CET')) ## Makes sure that
+
+    application = (CustomApplicationBuilder()
+                   .token(os.environ.get("TELEGRAM_KEY"))
+                   .pool_timeout(10)
+                   .defaults(defaults)
+                   .build()
+                   )
 
     application.bot_data["settings"] = Settings("settings.pickle")
 
-    creds = json.loads(ValkeyDB().get("callendar_credentials"))
-    application.bot_data["calendar"] = Calendar(creds)
+
+    creds = ValkeyDB().get("callendar_credentials")
+
+    if creds is not None:
+        creds = json.loads(creds)
+
+
+    token = ValkeyDB().get_serialized("calendar_token")
+
+    application.bot_data["calendar"] = Calendar(creds, token)
 
     application.add_handler(time_table_handler())
     application.add_handler(calendar_auth_handler())
@@ -73,7 +93,6 @@ if __name__ == '__main__':
     application.bot_data["reminder"] = reminder
     application.bot_data["timetable"] = TimeTable(pytz.timezone('CET'))
 
-    asyncio.run_coroutine_threadsafe(email_updates(application.bot, chat_id), loop)
 
     client.add_function(get_current_time, "get_current_time", "Returns the current time")
     client.add_function(seconds_until, "seconds_until", "Returns seconds until date in format %Y-%m-%d %H:%M:%S")
