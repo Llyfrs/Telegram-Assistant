@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
@@ -64,27 +64,51 @@ class Calendar:
         return events
 
     ## https://developers.google.com/calendar/api/v3/reference/events/insert
-    def add_event(self, start :datetime, end :datetime, summary, description=None, location=None):
+    def add_event(self, start: datetime, end :datetime, summary, description=None, location=None, all_day=False):
         service = build('calendar', 'v3', credentials=self.token)
 
         event = {
             'summary': summary,
-            'description': description
         }
+
+        if description:
+            event['description'] = description
 
         if location:
             event['location'] = location
 
-        event['start'] = {
-            'dateTime': start.isoformat(),
-        }
-
-        if end:
-            event['end'] = {
-                'dateTime': end.isoformat(),
+        if all_day:
+            # The date, in the format "yyyy-mm-dd", if this is an all-day event.
+            event['start'] = {
+                'date': start.date().isoformat()
             }
 
+            if end:
+                event['end'] = {
+                    'date': end.date().isoformat()
+                }
+            else:
+                event['end'] = {
+                'date': start.date().isoformat()
+            }
+
+        else:
+            event['start'] = {
+                'dateTime': start.isoformat()
+            }
+
+            if end:
+                event['end'] = {
+                    'dateTime': end.isoformat(),
+                }
+            else : ## Hour afte start
+                start = start + timedelta(hours=1)
+                event['end'] = {
+                    'dateTime': start.isoformat(),
+                }
+
         service.events().insert(calendarId='primary', body=event).execute()
+
 
 
 

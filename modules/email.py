@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from email.policy import default
 from time import sleep
 from typing import Optional
 
@@ -70,7 +71,7 @@ class Email:
                                 "If the email seems suspicious or it's advertisement mark it as spam and don't provide a summary. "
                                 "If the email contains any events with dates and times, provide the event details."
                                 "You are free to use markdown to format the response.",
-                    message=f'{e.subject} {e.text}',
+                    message=f'{e.subject} {e.text} \n timestamp: {e.date.isoformat()}',
                     schema=EmailResponse
                 ).parsed
                 self.reported.append(e.uid)
@@ -86,6 +87,7 @@ class Email:
 class Event(BaseModel):
     title: str
     description: str
+    all_day: bool = Field(json_schema_extra={'description': "If no start time is provided, return as True"})
     start: Optional[str] = Field(default=None, json_schema_extra={'type': ['string', 'null'], 'description': 'Date and time in ISO format'})
     end: Optional[str] = Field(default=None, json_schema_extra={'type': ['string', 'null'], 'description': 'Date and time in ISO format'})
 
