@@ -42,7 +42,7 @@ class EmailSummary(Watcher):
         if app.job_queue is None:
             raise ValueError("Application instance does not have a job queue.")
 
-        app.job_queue.run_repeating(cls.job, interval=10)
+        app.job_queue.run_repeating(cls.job, interval=cls.interval)
 
         app.add_handler(CallbackQueryHandler(cls.add_event, pattern="add_event"))
         app.add_handler(CallbackQueryHandler(cls.ignore_event, pattern="ignore_event"))
