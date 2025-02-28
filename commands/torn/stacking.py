@@ -1,3 +1,9 @@
+"""
+
+Toggle for stacking mode in Torn. Changes some behaviour to take into account that the user is intentionally keeping energy above maximum.
+
+"""
+
 from commands.command import command
 
 

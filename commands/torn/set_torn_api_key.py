@@ -1,3 +1,12 @@
+"""
+
+This command is used to set the Torn API key.
+Usage looks like this: /set_torn_api_key <api_key>
+This is unfortunately is not following the intended way for slash commands. As they are not expected to have parameters.
+Should be rewritten in to conversation.
+
+"""
+
 import asyncio
 
 from commands.command import command

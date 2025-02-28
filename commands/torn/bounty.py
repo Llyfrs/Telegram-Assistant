@@ -1,3 +1,8 @@
+"""
+Creates a self updating message that lists all the available bounties in torn.
+See torn.bounty_monitor for more information
+"""
+
 import asyncio
 import logging
 from asyncio import Future

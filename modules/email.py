@@ -97,7 +97,7 @@ class Event(BaseModel):
 ## So to make it work you have to add your own extra json_schema_extra to the field.
 ## Second thing I noticed is that the order matters, it is safe to assume the AI generates the json in order, so if like in this case the summary is optional
 ## and depended on the spam value, it has to be later in the schema.
-## Having the summary be none fro spam will hopefully save few cents on the API calls.
+## Having the summary be none for spam will hopefully save few cents on the API calls.
 class EmailResponse(BaseModel):
     spam: bool
     summary: Optional[str] = Field(default=None, json_schema_extra={'type': ['string', 'null']})

@@ -1,3 +1,9 @@
+"""
+Defines the command class and it's decorator that can be used to quickly add a new slash command to the bot.
+The command will be automatically registered (if imported) and added to the application.
+Including the command description from the docstring.
+"""
+
 import re
 from inspect import getdoc
 from typing import Dict, Type, TypeVar
@@ -6,6 +12,7 @@ from telegram import Update
 from telegram.ext import Application, ApplicationBuilder, CommandHandler, ContextTypes
 
 CommandType = TypeVar('CommandType', bound='Command')
+
 
 class CommandMeta(type):
     """Metaclass to auto-register commands and convert class names to snake_case."""
@@ -39,7 +46,6 @@ class Command(metaclass=CommandMeta):
             CommandHandler(cls.command_name, cls.handle)
         )
 
-
     @classmethod
     def get_description(cls) -> str:
         """Get command description from docstring"""
@@ -49,7 +55,6 @@ class Command(metaclass=CommandMeta):
     async def handle(cls, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """For simple commands, that don't start conversations, handless it's onw function name if it can be"""
         pass
-
 
 
 def command(func):
