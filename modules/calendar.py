@@ -41,13 +41,21 @@ class Calendar:
         flow.fetch_token(code=code)
         return flow.credentials
 
+
     def is_token_valid(self):
         if not self.token or not self.token.valid:
-            if self.token and self.token.expired and self.token.refresh_token:
-                self.token.refresh(Request())
-            else:
-                return False
+            return self.refresh_token()
         return True
+
+    def refresh_token(self):
+        if self.token and self.token.expired and self.token.refresh_token:
+            try:
+                self.token.refresh(Request())
+                return True
+            except Exception as e:
+                print(f"Token refresh failed: {e}")
+                return False
+        return False
 
     ## https://developers.google.com/calendar/api/v3/reference/events/list
     def get_events(self):
