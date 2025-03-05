@@ -68,7 +68,6 @@ if __name__ == '__main__':
     application.bot_data["calendar"] = Calendar(creds, token)
 
     application.add_handler(time_table_handler())
-    application.add_handler(calendar_auth_handler())
 
     ## loop = asyncio.get_event_loop()
     ## loop.run_until_complete(load_commands())

@@ -33,7 +33,7 @@ class Assistant(Command):
     @classmethod
     def handler(cls, app):
         pass
-        app.add_handler(MessageHandler((filters.TEXT | filters.PHOTO) & ~filters.COMMAND, Assistant.handle), group=1)
+        app.add_handler(MessageHandler((filters.TEXT | filters.PHOTO) & ~filters.COMMAND, Assistant.handle), group=0)
 
     @classmethod
     async def handle(cls, update: Update, context: ContextTypes.DEFAULT_TYPE):
