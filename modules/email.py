@@ -1,16 +1,8 @@
-import asyncio
-import logging
-from email.policy import default
-from time import sleep
+
 from typing import Optional
 
-import telegram
 from imap_tools import MailBox, AND
 import os
-
-from typing import Union
-from pydantic.json_schema import GenerateJsonSchema
-from telegramify_markdown import markdownify
 
 import openai_api
 from pydantic import BaseModel, Field

@@ -1,8 +1,9 @@
 import json
 
 from telegram import Update
-from telegram.ext import ContextTypes, CommandHandler, ConversationHandler, MessageHandler, filters
+from telegram.ext import ContextTypes, CommandHandler, ConversationHandler, MessageHandler, filters, Application
 
+from commands.command import Command
 from commands.time_table.time_table import cancel
 from modules.calendar import Calendar
 from modules.database import ValkeyDB
@@ -49,3 +50,11 @@ def calendar_auth_handler():
             GET_TOKEN: [MessageHandler(~filters.COMMAND, get_token)]
         },
         fallbacks=[CommandHandler("cancel", cancel)])
+
+
+class Auth(Command):
+
+    @classmethod
+    def handler(cls, app: Application) -> None:
+        app.add_handler(calendar_auth_handler())
+    pass

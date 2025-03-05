@@ -13,6 +13,8 @@ from watchers.watcher import Watcher
 
 from typing import Dict
 
+logger = logging.getLogger(__name__)
+
 class EmailSummary(Watcher):
 
     interval = 100
@@ -37,7 +39,7 @@ class EmailSummary(Watcher):
     def setup(cls, app: Application) -> None:
         """Schedule the watcher's job with the application's job queue."""
 
-        logging.info("Setting up EmailSummary watcher")
+        logger.info("Setting up EmailSummary watcher")
 
         if app.job_queue is None:
             raise ValueError("Application instance does not have a job queue.")
@@ -52,18 +54,16 @@ class EmailSummary(Watcher):
     @classmethod
     async def job(cls, context: ContextTypes.DEFAULT_TYPE) -> None:
 
-        logging.info("Running EmailSummary job")
-
         chat_id = ValkeyDB().get_serialized("chat_id")
 
         if chat_id is None:
-            logging.error("chat_id is not set")
+            logger.error("chat_id is not set")
             return
 
         summary = cls.email.summarize_new()
 
         if len(summary) > 0:
-            logging.info(f"Processing {len(summary)} new emails")
+            logger.info(f"Processing {len(summary)} new emails")
 
         for e, response in summary:
 
@@ -106,7 +106,7 @@ class EmailSummary(Watcher):
         chat_id = ValkeyDB().get_serialized("chat_id")
 
         if chat_id is None:
-            logging.error("chat_id is not set")
+            logger.error("chat_id is not set")
             return
 
         start_string = "N/A" if event.start is None else datetime.datetime.fromisoformat(
@@ -142,7 +142,7 @@ class EmailSummary(Watcher):
         """Handle callback queries from the watcher"""
         query = update.callback_query
 
-        logging.info(f"Handling callback query: {query.data}")
+        logger.info(f"Handling callback query: {query.data}")
 
         await query.answer()
 
@@ -153,7 +153,7 @@ class EmailSummary(Watcher):
         start = None if event.start is None else datetime.datetime.fromisoformat(event.start)
         end = None if event.end is None else datetime.datetime.fromisoformat(event.end)
 
-        logging.info(f'Event is all day {event.all_day}')
+        logger.info(f'Event is all day {event.all_day}')
 
         calendar.add_event(
             start=start,
@@ -184,7 +184,7 @@ class EmailSummary(Watcher):
         """Handle callback queries from the watcher"""
         query = update.callback_query
 
-        logging.info(f"Handling callback query: {query.data}")
+        logger.info(f"Handling callback query: {query.data}")
 
         await query.answer()
 
