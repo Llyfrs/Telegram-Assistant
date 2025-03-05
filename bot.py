@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import asyncio
+import datetime
 import glob
 import importlib
 import json
@@ -18,10 +19,12 @@ from hacks.CustomeAplicationBuilder import CustomApplicationBuilder
 from modules.Settings import Settings
 from modules.calendar import Calendar
 from modules.database import ValkeyDB
+from modules.email import Event
 from modules.reminder import Reminders, calculate_seconds, seconds_until
 from modules.timetable import TimeTable
 from modules.torn import Torn
 from modules.wolfamalpha import calculate
+from watchers.email_summary import EmailSummary, blocking_add_event
 
 ## For commands to be loaded they need to be imported
 ## You could do it by hand (import commands.command_name)
@@ -67,8 +70,6 @@ if __name__ == '__main__':
 
     application.bot_data["calendar"] = Calendar(creds, token)
 
-    application.add_handler(time_table_handler())
-
     ## loop = asyncio.get_event_loop()
     ## loop.run_until_complete(load_commands())
 
@@ -103,6 +104,8 @@ if __name__ == '__main__':
 
     client.add_function(reminder.remove_reminders, "cancel_reminder", "Cancels reminders.")
     client.add_function(reminder.get_reminders, "get_reminders", "Returns list of all running reminders")
+
+    client.add_function(blocking_add_event, "create_event", "Creates event from email")
 
     client.create()
 

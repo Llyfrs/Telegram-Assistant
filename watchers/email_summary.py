@@ -1,7 +1,7 @@
 import datetime
 import logging
 import os
-
+import asyncio
 
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton, Update
 from telegram.ext import Application, ContextTypes, CallbackQueryHandler
@@ -100,14 +100,14 @@ class EmailSummary(Watcher):
         pass
 
     @classmethod
-    async def create_event(cls, event : Event) -> None:
+    async def create_event(cls, event: Event) -> bool:
         """Create an event from the callback query and add it to the calendar"""
 
         chat_id = ValkeyDB().get_serialized("chat_id")
 
         if chat_id is None:
             logger.error("chat_id is not set")
-            return
+            return False
 
         start_string = "N/A" if event.start is None else datetime.datetime.fromisoformat(
             event.start).strftime("%Y-%m-%d %H:%M")
@@ -135,7 +135,7 @@ class EmailSummary(Watcher):
 
         cls.events[message.id] = event
 
-        pass
+        return True
 
     @classmethod
     async def add_event(cls, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -195,5 +195,14 @@ class EmailSummary(Watcher):
         )
 
         pass
+
+
+
+def blocking_add_event(event: Event) -> bool:
+
+    logging.info(f"Blocking add event {event}")
+
+    asyncio.create_task(EmailSummary.create_event(event))
+    return True
 
 

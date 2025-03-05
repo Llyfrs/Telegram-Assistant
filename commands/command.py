@@ -37,7 +37,8 @@ class Command(metaclass=CommandMeta):
     """Base command class with automatic registration"""
     command_name: str  # Will be set by metaclass
     commands: Dict[str, Type[CommandType]] = None
-    register = True
+    register = True # Register decides if command is added to the list of commands (probably only used for messagehandler)
+    priority = 0
 
     @classmethod
     def handler(cls, app: Application) -> None:
@@ -57,10 +58,11 @@ class Command(metaclass=CommandMeta):
         pass
 
 
-def command(func):
+def command(func, priority=0):
     """Decorator to convert a function into a Command class"""
     name = func.__name__.capitalize()  # Capitalize function name
     return type(name, (Command,), {
         "__doc__": func.__doc__,
         "handle": classmethod(lambda cls, update, context: func(update, context)),
+        "priority": priority
     })

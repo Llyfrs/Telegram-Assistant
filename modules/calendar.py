@@ -75,6 +75,8 @@ class Calendar:
     def add_event(self, start: datetime, end :datetime, summary, description=None, location=None, all_day=False):
         service = build('calendar', 'v3', credentials=self.token)
 
+        timezone = "Europe/Prague"
+
         event = {
             'summary': summary,
         }
@@ -88,31 +90,34 @@ class Calendar:
         if all_day:
             # The date, in the format "yyyy-mm-dd", if this is an all-day event.
             event['start'] = {
-                'date': start.date().isoformat()
+                'date': start.date().isoformat(),
             }
 
             if end:
                 event['end'] = {
-                    'date': end.date().isoformat()
+                    'date': end.date().isoformat(),
                 }
             else:
                 event['end'] = {
-                'date': start.date().isoformat()
+                'date': start.date().isoformat(),
             }
 
         else:
             event['start'] = {
-                'dateTime': start.isoformat()
+                'dateTime': start.isoformat(),
+                'timeZone': timezone
             }
 
             if end:
                 event['end'] = {
                     'dateTime': end.isoformat(),
+                    'timeZone': timezone
                 }
             else : ## Hour afte start
                 start = start + timedelta(hours=1)
                 event['end'] = {
                     'dateTime': start.isoformat(),
+                    'timeZone': timezone
                 }
 
         service.events().insert(calendarId='primary', body=event).execute()
