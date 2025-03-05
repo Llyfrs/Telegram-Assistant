@@ -93,8 +93,6 @@ if __name__ == '__main__':
 
     client.add_function(get_current_time, "get_current_time", "Returns the current time")
     client.add_function(seconds_until, "seconds_until", "Returns seconds until date in format %Y-%m-%d %H:%M:%S")
-    client.add_function(calculate, "calculate",
-                        "Calculates math expression using wolframalpha. Can also calculate dates for example")
 
     client.add_function(calculate_seconds, "convert_to_seconds",
                         "Converts days, hours, minutes and seconds to just seconds")
@@ -105,7 +103,9 @@ if __name__ == '__main__':
     client.add_function(reminder.remove_reminders, "cancel_reminder", "Cancels reminders.")
     client.add_function(reminder.get_reminders, "get_reminders", "Returns list of all running reminders")
 
-    client.add_function(blocking_add_event, "create_event", "Creates event from email")
+    client.add_function(blocking_add_event, "create_event", "Creates event in a calendar. "
+                                                            "Should be use for any approaching events that the user "
+                                                            "should be aware of continuously")
 
     client.create()
 

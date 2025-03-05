@@ -124,8 +124,6 @@ class Calendar:
 
 
 
-
-
 if __name__ == "__main__":
 
     with open("modules/credentials.json", "r") as file:
