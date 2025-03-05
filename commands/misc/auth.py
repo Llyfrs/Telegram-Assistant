@@ -45,7 +45,7 @@ async def get_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def calendar_auth_handler():
     return ConversationHandler(
-        entry_points=[CommandHandler("calendar", enter)],
+        entry_points=[CommandHandler("auth", enter)],
         states={
             GET_TOKEN: [MessageHandler(~filters.COMMAND, get_token)]
         },
