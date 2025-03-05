@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 
 import asyncio
-import datetime
 import glob
 import importlib
 import json
@@ -13,18 +12,14 @@ from telegram.ext import Defaults
 
 import openai_api
 from commands.assistant.assistant import get_current_time
-from commands.misc.auth import calendar_auth_handler
-from commands.time_table.time_table import time_table_handler
 from hacks.CustomeAplicationBuilder import CustomApplicationBuilder
 from modules.Settings import Settings
 from modules.calendar import Calendar
 from modules.database import ValkeyDB
-from modules.email import Event
 from modules.reminder import Reminders, calculate_seconds, seconds_until
 from modules.timetable import TimeTable
 from modules.torn import Torn
-from modules.wolfamalpha import calculate
-from watchers.email_summary import EmailSummary, blocking_add_event
+from watchers.email_summary import blocking_add_event
 
 ## For commands to be loaded they need to be imported
 ## You could do it by hand (import commands.command_name)

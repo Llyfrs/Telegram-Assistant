@@ -1,8 +1,6 @@
 import inspect
 import json
-from inspect import signature
 
-import openai
 from openai.types.beta.threads.run import RequiredAction
 from pydantic import BaseModel
 
