@@ -5,6 +5,7 @@ import openai
 
 from functions import Functions
 
+logger = logging.getLogger(__name__)
 
 class OpenAI_API:
     def __init__(self, key: str, model: str = "gpt-4o-mini"):
@@ -116,13 +117,18 @@ class OpenAI_API:
                     logging.info("Requested action but no action was provided")
                     time.sleep(0.5)
 
-                print(self.run.required_action)
-                print(self.functions.process_required_actions(self.run.required_action))
+
+                logger.info(f"Required action: {self.run.required_action}")
+
+                result = self.functions.process_required_actions(self.run.required_action)
+
+                logger.info(f"Tool outputs: {result}")
+
 
                 self.client.beta.threads.runs.submit_tool_outputs(
                     run_id=self.run.id,
                     thread_id=self.thread.id,
-                    tool_outputs=self.functions.process_required_actions(self.run.required_action)
+                    tool_outputs=result
                 )
 
 

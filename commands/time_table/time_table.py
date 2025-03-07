@@ -6,8 +6,9 @@ import telegramify_markdown
 
 from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, CommandHandler, CallbackQueryHandler, \
-    filters
+    filters, Application
 
+from commands.command import Command
 from modules.timetable import TimeTable
 
 CHOOSE, DAY, COURSE, ROOM , TIME_START, TIME_END, CONFIRM = range(7)
@@ -211,3 +212,12 @@ def time_table_handler():
             LIST_DAYS: [ CallbackQueryHandler(list_days) ],
             DELETE_COURSE: [ CallbackQueryHandler(delete_course) ]
         }, fallbacks=[ CommandHandler("cancel", cancel) ])
+
+
+class TimeTable(Command):
+
+    priority = 1
+
+    @classmethod
+    def handler(cls, app: Application):
+        app.add_handler(time_table_handler())

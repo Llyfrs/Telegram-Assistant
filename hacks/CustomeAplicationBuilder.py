@@ -13,7 +13,13 @@ class CustomApplicationBuilder(ApplicationBuilder):
 
         # Register commands
         command_list = []
-        for name, cmd_cls in Command.commands.items():
+
+        commands = sorted(Command.commands.items(), key=lambda x: x[1].priority, reverse=True)
+
+        for name, cmd_cls in commands:
+
+            logging.info(f"Registering command: {name}")
+
             cmd_cls.handler(app)
             if issubclass(cmd_cls, Command) and cmd_cls.register:
                 command_list.append((name, cmd_cls.get_description()))

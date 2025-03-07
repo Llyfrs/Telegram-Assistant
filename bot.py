@@ -12,8 +12,6 @@ from telegram.ext import Defaults
 
 import openai_api
 from commands.assistant.assistant import get_current_time
-from commands.misc.auth import calendar_auth_handler
-from commands.time_table.time_table import time_table_handler
 from hacks.CustomeAplicationBuilder import CustomApplicationBuilder
 from modules.Settings import Settings
 from modules.calendar import Calendar
@@ -21,7 +19,7 @@ from modules.database import ValkeyDB
 from modules.reminder import Reminders, calculate_seconds, seconds_until
 from modules.timetable import TimeTable
 from modules.torn import Torn
-from modules.wolfamalpha import calculate
+from watchers.email_summary import blocking_add_event
 
 ## For commands to be loaded they need to be imported
 ## You could do it by hand (import commands.command_name)
@@ -67,8 +65,6 @@ if __name__ == '__main__':
 
     application.bot_data["calendar"] = Calendar(creds, token)
 
-    application.add_handler(time_table_handler())
-
     ## loop = asyncio.get_event_loop()
     ## loop.run_until_complete(load_commands())
 
@@ -92,8 +88,6 @@ if __name__ == '__main__':
 
     client.add_function(get_current_time, "get_current_time", "Returns the current time")
     client.add_function(seconds_until, "seconds_until", "Returns seconds until date in format %Y-%m-%d %H:%M:%S")
-    client.add_function(calculate, "calculate",
-                        "Calculates math expression using wolframalpha. Can also calculate dates for example")
 
     client.add_function(calculate_seconds, "convert_to_seconds",
                         "Converts days, hours, minutes and seconds to just seconds")
@@ -103,6 +97,10 @@ if __name__ == '__main__':
 
     client.add_function(reminder.remove_reminders, "cancel_reminder", "Cancels reminders.")
     client.add_function(reminder.get_reminders, "get_reminders", "Returns list of all running reminders")
+
+    client.add_function(blocking_add_event, "create_event", "Creates event in a calendar. "
+                                                            "Should be use for any approaching events that the user "
+                                                            "should be aware of continuously")
 
     client.create()
 

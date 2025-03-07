@@ -56,5 +56,5 @@ class Auth(Command):
 
     @classmethod
     def handler(cls, app: Application) -> None:
-        app.add_handler(calendar_auth_handler())
+        app.add_handler(calendar_auth_handler(), group=1)
     pass
