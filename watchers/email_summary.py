@@ -202,7 +202,12 @@ def blocking_add_event(event: Event) -> bool:
 
     logging.info(f"Blocking add event {event}")
 
-    asyncio.create_task(EmailSummary.create_event(event))
+    ## The delay hopefully makes the event confirmation message appear after the AI response, but it's not guaranteed.
+    async def delayed_create_event():
+        await asyncio.sleep(5)
+        await EmailSummary.create_event(event)
+
+    asyncio.create_task(delayed_create_event())
     return True
 
 

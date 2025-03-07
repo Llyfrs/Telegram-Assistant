@@ -15,6 +15,7 @@ from modules.tools import debug
 costs = {
     "gpt-4o": 0.00500 / 1000,
     "gpt-4o-mini": 0.000150 / 1000,
+    "o3-mini": 1.10 / 1000000
 }
 
 ## TODO: Move this to a separate file at some point, it's here to just clean up the main file
