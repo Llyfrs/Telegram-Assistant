@@ -69,7 +69,7 @@ class Assistant(Command):
         if db.get_serialized("debug", False):
 
             cost = client.last_run_cost
-            dollar_cost = costs[client.model] * cost.total_tokens
+            dollar_cost = costs.get(client.model, 0) * cost.total_tokens
 
             long_time_cost = db.get_serialized("cost", 0)
             if long_time_cost is None:
