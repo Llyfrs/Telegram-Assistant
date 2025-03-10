@@ -323,6 +323,9 @@ class Torn:
         await self.send(message)
 
     async def trains(self):
+
+        company_employees = self.company.get("company_employees")
+
         try:
             if self.company.get("company_detailed").get("trains_available") == 0:
                 messages = "You have no trains available, you can't train anyone"
@@ -344,13 +347,14 @@ class Torn:
                 order.append(order.pop(0))
                 ValkeyDB().set_serialized("last_employee_trained", order)
 
-
-
                 wage = employees[order[0]].get("wage")
                 trains = self.company.get("company_detailed").get("trains_available")
+                preference = ValkeyDB().get_serialized("company_employees", {}).get(order[0], None)
 
                 messages = (f"You have *{trains} trains* available and your next employee to train is *{employees[order[0]].get('name')}* "
                             f"you can update their wage to `{wage - trains}` when you finish. [Quick link](https://www.torn.com/companies.php?step=your&type=1)")
+
+                messages += f"\n\nPrefers: *{preference}*" if preference is not None else ""
 
                 logging.info(f"Trains available: {trains}, next employee: {employees[order[0]].get('name')}")
 

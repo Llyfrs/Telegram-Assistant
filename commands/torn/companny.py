@@ -1,7 +1,12 @@
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import Application, ConversationHandler, CommandHandler, CallbackQueryHandler, ContextTypes
+import logging
+from typing import List
+
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, Message
+from telegram.ext import Application, ConversationHandler, CommandHandler, CallbackQueryHandler, ContextTypes, \
+    MessageHandler, filters
 
 from commands.command import command, Command
+from commands.time_table.time_table import cancel
 from modules.database import ValkeyDB
 from modules.torn import Torn
 
@@ -9,13 +14,18 @@ from modules.torn import Torn
 class CompanyState:
     COMPANY_MENU = 0
     TRAINING = 1
+    COLLECT_PREFERENCE = 2
     LEAVE = -1
 
 
 class Company(Command):
 
+
+    main_message : Message = None
+    cleanup : List[Message] = []
+
     @staticmethod
-    async def generate_menu_keyboard():
+    def generate_menu_keyboard() -> InlineKeyboardMarkup:
         keyboard = [
             [ InlineKeyboardButton("Training Preferences", callback_data="training") ],
             [ InlineKeyboardButton("Cancel", callback_data="cancel") ]
@@ -37,29 +47,32 @@ class Company(Command):
             name = company_data[employee].get("name", "Unknown")
 
             if wage == 0:
-                break
+                continue
 
             preference = employees_setting.get(employee, "None")
 
             keyboard.append([ InlineKeyboardButton( f'{name}: {preference}', callback_data=f"employee_{employee}") ])
 
 
+
         keyboard.append([ InlineKeyboardButton("Cancel", callback_data="cancel") ])
 
+        return InlineKeyboardMarkup(keyboard)
 
 
 
 
-    async def start_company(self, update, context):
+    @classmethod
+    async def start_company(cls, update : Update, context : ContextTypes.DEFAULT_TYPE):
         """Entry point for company command"""
-        await update.message.reply_text(
+        cls.main_message = await update.message.reply_text(
             "Click to toggle company settings:",
-            reply_markup=self.generate_menu_keyboard()
+            reply_markup=cls.generate_menu_keyboard()
         )
-        return CompanyState.MENU
+        return CompanyState.COMPANY_MENU ## handle_menu_action()
 
-
-    async def handle_menu_action(self, update, context):
+    @classmethod
+    async def handle_menu_action(cls, update, context):
         query = update.callback_query
         await query.answer()
 
@@ -68,30 +81,73 @@ class Company(Command):
             return ConversationHandler.END
 
         if query.data == "training":
-            await query.message.edit_reply_markup(reply_markup=self.generate_training_keyboard(context))
-            return CompanyState.TRAINING
+            cls.main_message = await cls.main_message.edit_reply_markup(reply_markup=await cls.generate_training_keyboard(context))
+            return CompanyState.TRAINING ## handle_training_action()
 
 
-    async def handle_training_action(self, update : Update, context : ContextTypes.DEFAULT_TYPE):
+    @classmethod
+    async def handle_training_action(cls, update: Update, context : ContextTypes.DEFAULT_TYPE):
         query = update.callback_query
         await query.answer()
 
+        if query.data == "cancel":
+            await query.delete_message()
+            return ConversationHandler.END
+
         employee_id = query.data.split("_")[1]
 
-        await update.message.reply_text(f"Write a preference for {employee_id}")
+        mess = await update.effective_chat.send_message(f"Enter the preference for employee {employee_id}")
+
+        cls.cleanup.append(mess)
+
+        return CompanyState.COLLECT_PREFERENCE
+
+
+    @classmethod
+    async def collect_preference(cls, update, context: ContextTypes.DEFAULT_TYPE):
+        preference = update.message.text
+
+        cls.cleanup.append(update.message)
+
+        ## Get the employee id
+        employee_id = cls.cleanup[-2].text.split(" ")[-1]
+
+        employees_setting = ValkeyDB().get_serialized("company_employees", {})
+
+        employees_setting[employee_id] = preference
+
+        ValkeyDB().set_serialized("company_employees", employees_setting)
+
+        if cls.main_message.reply_markup != await cls.generate_training_keyboard(context):
+            await cls.main_message.edit_reply_markup(reply_markup=await cls.generate_training_keyboard(context))
+
+        for message in cls.cleanup:
+            await message.delete()
+
+        cls.cleanup = []
+
+        return CompanyState.TRAINING
 
 
 
 
-    async def handler(cls, app: Application) -> None:
+    @classmethod
+    def handler(cls, app: Application) -> None:
+
+        logging.info("Company command handler")
+
         app.add_handler(
             ConversationHandler(
                 entry_points=[CommandHandler("company", cls.start_company)],
                 states={
                     CompanyState.COMPANY_MENU: [
                         CallbackQueryHandler(cls.handle_menu_action),
-
-
+                    ],
+                    CompanyState.TRAINING: [
+                        CallbackQueryHandler(cls.handle_training_action)
+                    ],
+                    CompanyState.COLLECT_PREFERENCE: [
+                        MessageHandler(~filters.COMMAND, cls.collect_preference)
                     ]
                 },
                 fallbacks=[CommandHandler("cancel", cancel)],

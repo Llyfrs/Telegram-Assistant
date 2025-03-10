@@ -32,6 +32,8 @@ def get_current_time():
 class Assistant(Command):
     register = False
 
+    priority = -1
+
     @classmethod
     def handler(cls, app):
         pass
