@@ -28,6 +28,7 @@ def get_current_time():
     print("Returning time: " + str(current_time_and_date))
     return {"current_time": current_time_and_date}
 
+
 class Assistant(Command):
     register = False
 

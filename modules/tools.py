@@ -30,6 +30,8 @@ def debug(steps):
 
     for step in data:
 
+        print(step)
+
         if step.type == "message_creation":
             continue
 

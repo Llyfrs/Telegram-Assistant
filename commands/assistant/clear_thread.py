@@ -1,3 +1,7 @@
+from commands.command import command
+
+
+@command
 async def clear_thread(update, context):
     """ Clears the thread """
 

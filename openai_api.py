@@ -34,6 +34,7 @@ class OpenAI_API:
                          "Do not input your own numbers in to it"
                          "Each user message is started with the current time in the format %H:%M:%S %d/%m/%Y \n",
             model=self.model,
+            reasoning_effort= "medium" if self.model == "gpt-o3-mini" else None,
             tools=tools
         )
 
@@ -46,10 +47,20 @@ class OpenAI_API:
         self.thread = self.client.beta.threads.create()
 
     def set_model(self, model: str):
+
+        tools = [{"type": "code_interpreter"}] if model != "o3-mini" else []
+
+        tools.extend(self.functions.get_list_of_functions())
+
+
         self.model = model
         self.assistant = self.client.beta.assistants.update(
             assistant_id=self.assistant.id,
-            model=model
+            model=model,
+            temperature= None if model == "o3-mini" else 0.5,
+            top_p= None if model == "o3-mini" else 1,
+            reasoning_effort= "medium" if model == "o3-mini" else None,
+            tools=tools
         )
 
     # adds message to the conversation but does not invoke AI to respond for that you need to call run()
