@@ -16,7 +16,6 @@ CommandType = TypeVar('CommandType', bound='Command')
 
 class CommandMeta(type):
     """Metaclass to auto-register commands and convert class names to snake_case."""
-
     def __new__(cls, name, bases, namespace):
         # Convert CamelCase to snake_case for command name
         command_name = re.sub(r'(?<!^)(?=[A-Z])', '_', name).lower()
