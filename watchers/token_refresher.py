@@ -7,7 +7,7 @@ from watchers.watcher import run_repeated
 
 logger = logging.getLogger(__name__)
 
-@run_repeated(interval=3600)
+@run_repeated(interval=1800)
 async def token_refresher(context: ContextTypes.DEFAULT_TYPE):
     """Refresh the token every hour."""
 
