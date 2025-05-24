@@ -3,8 +3,8 @@ import logging
 
 from telegram.ext import Application, ApplicationBuilder
 
-from commands.command import Command
-from watchers.watcher import Watcher
+from bot.classes.command import Command
+from bot.classes.watcher import Watcher
 
 
 class CustomApplicationBuilder(ApplicationBuilder):

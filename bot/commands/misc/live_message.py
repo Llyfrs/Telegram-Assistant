@@ -3,7 +3,7 @@ import time
 
 from telegram import Message
 
-from commands.command import command
+from bot.classes.command import command
 from modules.reminder import convert_seconds_to_hms
 
 @command

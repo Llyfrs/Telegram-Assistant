@@ -13,7 +13,6 @@ class Settings:
 
     def load_settings(self):
         try:
-
             settings = self.db.get_serialized("settings")
 
         except Exception as exc:

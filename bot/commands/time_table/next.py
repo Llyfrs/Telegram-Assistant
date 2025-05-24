@@ -1,6 +1,6 @@
 import telegramify_markdown
 
-from commands.command import command
+from bot.classes.command import command
 
 
 @command

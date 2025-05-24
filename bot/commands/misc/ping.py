@@ -5,7 +5,7 @@ Creating class provides you with more flexibility and allows you to use class va
 Class definition is also the only way to right now implement conversation handler.
 
 """
-from commands.command import command, Command
+from bot.classes.command import command, Command
 
 
 @command

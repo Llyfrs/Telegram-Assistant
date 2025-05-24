@@ -8,7 +8,7 @@ from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKe
 from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, CommandHandler, CallbackQueryHandler, \
     filters, Application
 
-from commands.command import Command
+from bot.classes.command import Command
 from modules.timetable import TimeTable
 
 CHOOSE, DAY, COURSE, ROOM , TIME_START, TIME_END, CONFIRM = range(7)

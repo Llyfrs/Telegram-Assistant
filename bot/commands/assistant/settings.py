@@ -1,7 +1,8 @@
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ConversationHandler, CommandHandler, CallbackQueryHandler, ContextTypes, Application
-from commands.command import Command
-from commands.time_table.time_table import cancel
+
+from bot.classes.command import Command
+from bot.commands.time_table.time_table import cancel
 from modules.database import ValkeyDB
 
 

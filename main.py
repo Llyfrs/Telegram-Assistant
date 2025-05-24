@@ -11,7 +11,7 @@ import pytz
 from telegram.ext import Defaults
 
 import openai_api
-from commands.assistant.assistant import get_current_time
+from bot.commands.assistant.assistant import get_current_time
 from hacks.CustomeAplicationBuilder import CustomApplicationBuilder
 from modules.Settings import Settings
 from modules.calendar import Calendar
@@ -19,18 +19,15 @@ from modules.database import ValkeyDB
 from modules.reminder import Reminders, calculate_seconds, seconds_until
 from modules.timetable import TimeTable
 from modules.torn import Torn
-from watchers.email_summary import blocking_add_event
+from bot.watchers.email_summary import blocking_add_event
+
 
 ## For commands to be loaded they need to be imported
 ## You could do it by hand (import commands.command_name)
 ## You could do it with __init__.py file in commands directory and then just do from commands import *
 ## But I don't like having to go somewhere after I create command and write it, so I import anything in commands directory including subdirectories
 [importlib.import_module(os.path.relpath(f, os.getcwd()).replace(os.path.sep, ".")[:-3]) for f in
- glob.glob("commands/**/*.py", recursive=True) if os.path.basename(f) != "__init__.py"]
-
-## Same as above but for watchers
-[importlib.import_module(os.path.relpath(f, os.getcwd()).replace(os.path.sep, ".")[:-3]) for f in
- glob.glob("watchers/**/*.py", recursive=True) if os.path.basename(f) != "__init__.py"]
+ glob.glob("bot/**/*.py", recursive=True) if os.path.basename(f) != "__init__.py"]
 
 logging.getLogger("httpx").setLevel(logging.ERROR)
 logging.getLogger("apscheduler").setLevel(logging.WARNING)

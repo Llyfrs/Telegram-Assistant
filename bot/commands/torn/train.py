@@ -1,7 +1,7 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from commands.command import command
+from bot.classes.command import command
 from modules.torn import Torn
 
 @command

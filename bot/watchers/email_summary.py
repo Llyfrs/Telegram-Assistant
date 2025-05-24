@@ -7,9 +7,10 @@ from telegram import InlineKeyboardMarkup, InlineKeyboardButton, Update
 from telegram.ext import Application, ContextTypes, CallbackQueryHandler
 from telegramify_markdown import markdownify
 
+from bot.classes.watcher import Watcher
 from modules.database import ValkeyDB
 from modules.email import Email, Event
-from watchers.watcher import Watcher
+
 
 from typing import Dict
 

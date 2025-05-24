@@ -3,8 +3,8 @@ import json
 from telegram import Update
 from telegram.ext import ContextTypes, CommandHandler, ConversationHandler, MessageHandler, filters, Application
 
-from commands.command import Command
-from commands.time_table.time_table import cancel
+from bot.classes.command import Command
+from bot.commands.time_table.time_table import cancel
 from modules.calendar import Calendar
 from modules.database import ValkeyDB
 

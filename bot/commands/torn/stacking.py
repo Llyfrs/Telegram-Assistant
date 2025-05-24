@@ -4,7 +4,7 @@ Toggle for stacking mode in Torn. Changes some behaviour to take into account th
 
 """
 
-from commands.command import command
+from bot.classes.command import command
 
 
 @command

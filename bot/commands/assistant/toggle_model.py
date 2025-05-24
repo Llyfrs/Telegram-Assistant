@@ -1,7 +1,7 @@
-from commands.command import command
+from bot.classes.command import command
 from openai_api import OpenAI_API
 
-MODELS = ["gpt-4o", "gpt-4o-mini", "o3-mini"]
+MODELS = ["gpt-4o", "gpt-4o-mini", "o4-mini"]
 
 @command
 async def toggle_model(update, context):

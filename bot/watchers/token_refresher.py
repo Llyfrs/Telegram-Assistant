@@ -2,8 +2,8 @@ import logging
 
 from telegram.ext import ContextTypes
 
+from bot.classes.watcher import run_repeated
 from modules.calendar import Calendar
-from watchers.watcher import run_repeated
 
 logger = logging.getLogger(__name__)
 

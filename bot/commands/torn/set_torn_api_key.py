@@ -9,7 +9,7 @@ Should be rewritten in to conversation.
 
 import asyncio
 
-from commands.command import command
+from bot.classes.command import command
 from modules.database import ValkeyDB
 from modules.torn import Torn
 

@@ -1,4 +1,4 @@
-from commands.command import command
+from bot.classes.command import command
 from modules.database import ValkeyDB
 
 

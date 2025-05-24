@@ -7,8 +7,7 @@ from telegram import Update
 from telegram.constants import ChatAction
 from telegram.ext import ContextTypes, filters, MessageHandler
 
-
-from commands.command import Command
+from bot.classes.command import Command
 from modules.database import ValkeyDB
 from modules.tools import debug
 
