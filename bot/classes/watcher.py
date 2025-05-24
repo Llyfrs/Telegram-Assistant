@@ -5,9 +5,6 @@ from telegram.ext import Application, ContextTypes
 
 WatcherType = TypeVar('WatcherType', bound='Watcher')
 
-
-
-
 class WatcherMeta(type):
     """Metaclass to auto-register watchers and convert class names to snake_case."""
 

@@ -10,16 +10,15 @@ import os
 import pytz
 from telegram.ext import Defaults
 
-import openai_api
-from bot.commands.assistant.assistant import get_current_time
-from hacks.CustomeAplicationBuilder import CustomApplicationBuilder
-from modules.Settings import Settings
+from agents.main_agent import initialize_main_agent
+from bot.classes.CustomeAplicationBuilder import CustomApplicationBuilder
+from enums.database import DatabaseConstants
 from modules.calendar import Calendar
 from modules.database import ValkeyDB
-from modules.reminder import Reminders, calculate_seconds, seconds_until
 from modules.timetable import TimeTable
 from modules.torn import Torn
-from bot.watchers.email_summary import blocking_add_event
+from enums.bot_data import BotData
+
 
 
 ## For commands to be loaded they need to be imported
@@ -42,6 +41,8 @@ ct = None
 
 if __name__ == '__main__':
 
+
+
     defaults = Defaults(tzinfo=pytz.timezone('CET'))  ## Makes sure that
 
     application = (CustomApplicationBuilder()
@@ -51,58 +52,32 @@ if __name__ == '__main__':
                    .build()
                    )
 
-    application.bot_data["settings"] = Settings("settings.pickle")
-
-    creds = ValkeyDB().get("callendar_credentials")
+    creds = ValkeyDB().get(DatabaseConstants.CALENDAR_CREDS, None)
 
     if creds is not None:
         creds = json.loads(creds)
 
-    token = ValkeyDB().get_serialized("calendar_token")
+    token = ValkeyDB().get_serialized(DatabaseConstants.CALENDAR_TOKEN, None)
 
-    application.bot_data["calendar"] = Calendar(creds, token)
+    application.bot_data[BotData.CALENDAR] = Calendar(creds, token)
 
     ## loop = asyncio.get_event_loop()
     ## loop.run_until_complete(load_commands())
 
-    chat_id = ValkeyDB().get_serialized("chat_id")
+    chat_id = ValkeyDB().get_serialized(DatabaseConstants.MAIN_CHAT_ID, None)
 
-    t = Torn(application.bot, ValkeyDB().get_serialized("torn_api_key", ""), chat_id)
-    application.bot_data["torn"] = t
+    API_KEY = ValkeyDB().get_serialized(DatabaseConstants.TORN_API_KEY, "")
+
+    t = Torn(application.bot, API_KEY , chat_id)
+
+    application.bot_data[BotData.TORN] = t
 
     loop = asyncio.get_event_loop()
 
     asyncio.run_coroutine_threadsafe(t.run(), loop)
 
-    # model = "gpt-4-1106-preview"
-    model = "gpt-4o-mini"
-    client = openai_api.OpenAI_API(os.environ.get("OPENAI_KEY"), model)
+    application.bot_data[BotData.TIMETABLE] = TimeTable(pytz.timezone('CET'))
 
-    reminder = Reminders(application.bot)
-
-    application.bot_data["reminder"] = reminder
-    application.bot_data["timetable"] = TimeTable(pytz.timezone('CET'))
-
-    client.add_function(get_current_time, "get_current_time", "Returns the current time")
-    client.add_function(seconds_until, "seconds_until", "Returns seconds until date in format %Y-%m-%d %H:%M:%S")
-
-    client.add_function(calculate_seconds, "convert_to_seconds",
-                        "Converts days, hours, minutes and seconds to just seconds")
-
-    client.add_function(reminder.add_reminder, "add_reminder",
-                        "Creates reminder that will be send to user after specified time.")
-
-    client.add_function(reminder.remove_reminders, "cancel_reminder", "Cancels reminders.")
-    client.add_function(reminder.get_reminders, "get_reminders", "Returns list of all running reminders")
-
-    client.add_function(blocking_add_event, "create_event", "Creates event in a calendar. "
-                                                            "Should be use for any approaching events that the user "
-                                                            "should be aware of continuously")
-
-    client.create()
-
-    application.bot_data["client"] = client
-
-    logging.info(client.functions.get_list_of_functions())
+    initialize_main_agent(application)
 
     application.run_polling()

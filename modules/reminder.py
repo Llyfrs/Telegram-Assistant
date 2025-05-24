@@ -12,10 +12,10 @@ from modules.database import ValkeyDB
 
 
 class Reminder:
-    def __init__(self, seconds: int, chat_id, reminder, bot):
+    def __init__(self, seconds: int, chat_id, reminder, bot, loop=None):
         self.reminder = reminder
         self.chat_id = chat_id
-        self.loop = asyncio.get_event_loop()
+        self.loop = loop if loop is not None else asyncio.get_event_loop()
         self.thread = threading.Timer(seconds, self.run)
         self.thread.start()
         self.bot = bot
@@ -43,7 +43,7 @@ def calculate_seconds(days: int = 0, hours: int = 0, minutes: int = 0, seconds: 
     return days * 86400 + hours * 3600 + minutes * 60 + seconds
 
 
-def seconds_until(target_date_str):
+def seconds_until(target_date_str : str) -> int:
     # Define Prague time zone
     prague_tz = pytz.timezone('cet')
 
@@ -71,6 +71,8 @@ class Reminders:
         self.bot = bot
         self.db = ValkeyDB()
 
+        self.loop = asyncio.get_event_loop()
+
         try:
             temp = self.db.get_serialized("reminders")
 
@@ -86,7 +88,7 @@ class Reminders:
             pass
 
     def add_reminder(self, seconds: int, reminder: str = "reminder"):
-        rem = Reminder(seconds, self.chat_id, reminder, self.bot)
+        rem = Reminder(seconds, self.chat_id, reminder, self.bot, self.loop)
         self.reminders.append(rem)
         self.reminder_data.append((time.time() + seconds, reminder, self.chat_id))
 

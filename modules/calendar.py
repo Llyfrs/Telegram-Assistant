@@ -5,6 +5,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 
+from enums.database import DatabaseConstants
 from modules.database import ValkeyDB
 
 
@@ -27,7 +28,10 @@ class Calendar:
             redirect_uri='urn:ietf:wg:oauth:2.0:oob'  # Enables manual code copy
         )
 
-        auth_url, _ = flow.authorization_url(prompt='consent')
+        auth_url, _ = flow.authorization_url(
+            prompt='consent',
+            access_type='offline',
+        )
         return auth_url
 
     def exchange_code(self, code):
@@ -58,13 +62,13 @@ class Calendar:
         return False
 
     ## https://developers.google.com/calendar/api/v3/reference/events/list
-    def get_events(self):
+    def get_events(self, max_results=10):
         service = build('calendar', 'v3', credentials=self.token)
 
         # Call the Calendar API
         now = datetime.utcnow().isoformat() + 'Z'
         events_result = service.events().list(calendarId='primary', timeMin=now,
-                                              maxResults=10, singleEvents=True,
+                                              maxResults=max_results, singleEvents=True,
                                               orderBy='startTime').execute()
 
         events = events_result.get('items', [])
@@ -128,10 +132,10 @@ if __name__ == "__main__":
 
     with open("modules/credentials.json", "r") as file:
         data = file.read()
-        ValkeyDB().set("callendar_credentials", data)
+        ValkeyDB().set(DatabaseConstants.CALENDAR_CREDS, data)
 
 
-    creds = ValkeyDB().get("callendar_credentials")
+    creds = ValkeyDB().get(DatabaseConstants.CALENDAR_CREDS)
     creds = json.loads(creds)
 
     callendar = Calendar(creds)
@@ -141,13 +145,18 @@ if __name__ == "__main__":
 
     token = callendar.exchange_code(code)
 
-    ValkeyDB().set_serialized("callendar_token", token)
+    callendar.token = token
+
+    ValkeyDB().set_serialized(DatabaseConstants.CALENDAR_TOKEN, token)
 
     events = callendar.get_events()
 
     for event in events:
+
+        print(event)
+
         print(event['summary'])
-        print(event['start']['dateTime'])
-        print(event['end']['dateTime'])
+        print(event['start']['date'])
+        print(event['end']['date'])
         print()
 

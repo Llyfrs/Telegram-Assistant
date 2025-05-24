@@ -2,14 +2,21 @@ import datetime
 import logging
 
 import pytz
-import telegramify_markdown
+
+
+from pydantic_ai import Agent, capture_run_messages, ImageUrl
+from pydantic_ai.messages import ToolReturnPart, ToolCallPart
 from telegram import Update
 from telegram.constants import ChatAction
 from telegram.ext import ContextTypes, filters, MessageHandler
 
 from bot.classes.command import Command
+from enums.bot_data import BotData
+from enums.database import DatabaseConstants
+from modules.bot import Bot
 from modules.database import ValkeyDB
-from modules.tools import debug
+from modules.reminder import Reminders
+
 
 costs = {
     "gpt-4o": 0.00500 / 1000,
@@ -30,8 +37,8 @@ def get_current_time():
 
 class Assistant(Command):
     register = False
-
     priority = -1
+    messages = []
 
     @classmethod
     def handler(cls, app):
@@ -41,16 +48,18 @@ class Assistant(Command):
     @classmethod
     async def handle(cls, update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-        client = context.bot_data["client"]
-        reminder = context.bot_data["reminder"]
+        main_agent : Agent = context.bot_data[BotData.MAIN_AGENT]
+        reminder : Reminders = context.bot_data[BotData.REMINDER]
 
         reminder.chat_id = update.effective_chat.id
+        bot = Bot(context.bot, update.effective_chat.id)
 
         ## Change status to typing
         await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
 
         print(update)
 
+        ## This whole think is broken as if you send more that one image they all get registered as a separate message
         photos = []
         if len(update.message.photo):
             photo = update.message.photo[-1]
@@ -61,54 +70,29 @@ class Assistant(Command):
 
         if len(photos) != 0:
             logging.info(f"User sent {len(photos)} photos")
-            message = update.message.caption
+            message = [update.message.caption, ImageUrl(url=photos[0])]
 
-        client.add_message(f"{get_current_time()['current_time']}: {message}", photos)
+        response = await main_agent.run(message, message_history=Assistant.messages)
 
-        steps = client.run_assistant()
+        Assistant.messages = response.all_messages()
 
         db = ValkeyDB()
+        tool_calls = {}
+        if db.get_serialized(DatabaseConstants.DEBUG, False):
+            for msg in response.new_messages():
+                parts = msg.parts
+                for part in parts:
+                    if isinstance(part, ToolCallPart):
+                        tool_calls[part.tool_call_id] = {
+                            "name": part.tool_name,
+                            "args": part.args,
+                        }
 
-        if db.get_serialized("debug", False):
+                    if isinstance(part, ToolReturnPart):
+                        tool_calls[part.tool_call_id]["output"] = part.content
 
-            cost = client.last_run_cost
-            dollar_cost = costs.get(client.model, 0) * cost.total_tokens
+        if len(tool_calls) > 0:
+            for tool_call_id, tool_call in tool_calls.items():
+                await bot.send(f"`{tool_call['name']}({tool_call['args']}) => {tool_call['output']}`")
 
-            long_time_cost = db.get_serialized("cost", 0)
-            if long_time_cost is None:
-                long_time_cost = 0
-
-            db.set_serialized("cost", long_time_cost + dollar_cost)
-
-            await context.bot.send_message(chat_id=update.effective_chat.id,
-                                           text=f"{cost.total_tokens} tokens used for price of ${round(dollar_cost, 5)}")
-            await context.bot.send_message(chat_id=update.effective_chat.id,
-                                           text=f"Total cost: ${round(long_time_cost + dollar_cost, 5)}")
-
-            for dbg_msg in debug(steps):
-
-                logging.info(dbg_msg)
-                # TODO this need to be fixed ffs it's so ugly
-                if dbg_msg == "":
-                    continue
-
-                await context.bot.send_message(chat_id=update.effective_chat.id, text=dbg_msg,
-                                               parse_mode="MarkdownV2")
-
-        # Sometimes the run is finished but the new message didn't arrive yet
-        # so this will make sure we won't miss it
-        messages = client.get_new_messages()
-        while len(messages.data) == 0:
-            messages = client.get_new_messages()
-            return
-
-        for message in messages:
-            for content in message.content:
-                if content.type == "text":
-                    await context.bot.send_message(chat_id=update.effective_chat.id,
-                                                   text=telegramify_markdown.markdownify(content.text.value),
-                                                   parse_mode="MarkdownV2")
-
-                if content.type == "image_file":
-                    content = client.client.files.content(file_id=content.image_file.file_id)
-                    await context.bot.send_photo(chat_id=update.effective_chat.id, photo=content)
+        await bot.send(response.output)
