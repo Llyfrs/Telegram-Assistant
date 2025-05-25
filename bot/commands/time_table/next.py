@@ -1,11 +1,12 @@
 import telegramify_markdown
 
 from bot.classes.command import command
+from enums.bot_data import BotData
 
 
 @command
 async def next(update, context):
-    timetable = context.bot_data["timetable"]
+    timetable = context.bot_data[BotData.TIMETABLE]
 
     lesson = timetable.next()
 

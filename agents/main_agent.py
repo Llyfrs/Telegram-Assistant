@@ -2,7 +2,7 @@ import logging
 import os
 
 from pydantic_ai import Agent, Tool
-from pydantic_ai.models.openai import OpenAIResponsesModel, OpenAIResponsesModelSettings
+from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from telegram.ext import Application
 
@@ -11,24 +11,38 @@ from bot.watchers.email_summary import blocking_add_event
 from enums.bot_data import BotData
 from modules.reminder import seconds_until, calculate_seconds, Reminders
 
-from openai.types.responses import FunctionTool
 
 logger = logging.getLogger(__name__)
 
 MAIN_AGENT_SYSTEM_PROMPT = """ 
-You are a personal telegram assistant for the user. 
+
+You are an intelligent personal telegram assistant for the user. 
 You help the user with various tasks and organization. 
+The user is the one developing you, so you can be fully honest with them about your inner workings and limitations. 
+You are controlling their system and they should have full control over it. 
+
 """
 
-provider = OpenAIProvider(api_key=os.getenv("OPENAI_KEY"))
+provider = OpenAIProvider(api_key=os.getenv("OPENAI_KEY"), base_url="https://openrouter.ai/api/v1")
 
-settings = OpenAIResponsesModelSettings(
-    openai_builtin_tools=[],
-)
-
-model = OpenAIResponsesModel('gpt-4o-mini', provider=provider)
+model = OpenAIModel('google/gemini-2.5-flash-preview-05-20', provider=provider)
 
 
+
+def instructions(application: Application) -> str:
+    """
+    Returns the instructions for the main agent.
+    This function is used to get the instructions for the main agent.
+    """
+
+    new_prompt = ""
+
+    new_prompt += ("\n\n Bellow provided context is live collection of data about the user, and general state of systems."
+                   "Use this information when it's relevant to better assist the user, and to compile with their preferences. ")
+
+    new_prompt += f"\n\n Current time: {get_current_time()}"
+
+    return new_prompt
 
 def initialize_main_agent(application: Application):
 
@@ -43,14 +57,8 @@ def initialize_main_agent(application: Application):
     main_agent = Agent(
         name="Main Agent",
         model=model,
-        system_prompt=MAIN_AGENT_SYSTEM_PROMPT,
-        model_settings=settings,
+        instructions=MAIN_AGENT_SYSTEM_PROMPT,
         tools=[
-            Tool(
-                name="get_current_time",
-                description="Returns the current time in the format %H:%M:%S %d/%m/%Y",
-                function=get_current_time
-            ),
             Tool(
                 name="seconds_until",
                 description="Returns number seconds remaining to provided date. Date format has to be %Y-%m-%d %H:%M:%S. ",
@@ -62,8 +70,8 @@ def initialize_main_agent(application: Application):
                 function=calculate_seconds
             ),
             Tool(
-                name="add_reminder",
-                description="Adds a reminder to the list of reminders. "
+                name="create_reminder",
+                description="Creates a reminder that will notify the user after a specified number of seconds. "
                             "This function is non blocking and will create a "
                             "new thread that notifies the user automatically.",
                 function=reminder.add_reminder
@@ -86,6 +94,11 @@ def initialize_main_agent(application: Application):
             ),
         ],
     )
+
+
+    @main_agent.instructions
+    def _instruction_warper() -> str:
+        return instructions(application)
 
     application.bot_data[BotData.MAIN_AGENT] = main_agent
 

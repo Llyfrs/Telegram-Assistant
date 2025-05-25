@@ -8,4 +8,6 @@ class DatabaseConstants(str, Enum):
 
     MAIN_CHAT_ID = "chat_id"
 
+    EMAIL_CHAT_ID = "email_chat_id"
+
     DEBUG = "debug"

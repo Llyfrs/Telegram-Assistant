@@ -4,7 +4,7 @@ import logging
 import pytz
 
 
-from pydantic_ai import Agent, capture_run_messages, ImageUrl
+from pydantic_ai import Agent, capture_run_messages, ImageUrl, AudioUrl
 from pydantic_ai.messages import ToolReturnPart, ToolCallPart
 from telegram import Update
 from telegram.constants import ChatAction
@@ -42,11 +42,12 @@ class Assistant(Command):
 
     @classmethod
     def handler(cls, app):
-        pass
-        app.add_handler(MessageHandler((filters.TEXT | filters.PHOTO) & ~filters.COMMAND, Assistant.handle), group=0)
+        app.add_handler(MessageHandler((filters.TEXT | filters.PHOTO | filters.VOICE) & ~filters.COMMAND, Assistant.handle), group=0)
 
     @classmethod
     async def handle(cls, update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+        print("Handling message in Assistant command")
 
         main_agent : Agent = context.bot_data[BotData.MAIN_AGENT]
         reminder : Reminders = context.bot_data[BotData.REMINDER]
@@ -59,6 +60,8 @@ class Assistant(Command):
 
         print(update)
 
+
+
         ## This whole think is broken as if you send more that one image they all get registered as a separate message
         photos = []
         if len(update.message.photo):
@@ -66,15 +69,28 @@ class Assistant(Command):
             file = await context.bot.get_file(photo.file_id)  # Renamed to clarify
             photos.append(file.file_path)
 
+        audio_url = None
+        if update.message.voice:
+            audio = update.message.voice
+            file = await context.bot.get_file(audio.file_id)
+            audio_url = file.file_path
+            print(audio_url)
+
         message = update.message.text
 
         if len(photos) != 0:
             logging.info(f"User sent {len(photos)} photos")
-            message = [update.message.caption, ImageUrl(url=photos[0])]
+            message = [ update.message.caption, ImageUrl(url=photos[0])]
 
-        response = await main_agent.run(message, message_history=Assistant.messages)
+        elif audio_url is not None:
+            logging.info("User sent a voice message")
+            message = ["Listen to the audio", AudioUrl(url=audio_url)]
 
-        Assistant.messages = response.all_messages()
+        messages = context.bot_data.get(BotData.MESSAGE_HISTORY, [])
+
+        response = await main_agent.run(message, message_history=messages)
+
+        context.bot_data[BotData.MESSAGE_HISTORY] = response.all_messages()
 
         db = ValkeyDB()
         tool_calls = {}

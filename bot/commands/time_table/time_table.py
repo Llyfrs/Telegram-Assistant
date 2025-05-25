@@ -9,6 +9,7 @@ from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, Comm
     filters, Application
 
 from bot.classes.command import Command
+from enums.bot_data import BotData
 from modules.timetable import TimeTable
 
 CHOOSE, DAY, COURSE, ROOM , TIME_START, TIME_END, CONFIRM = range(7)
@@ -40,7 +41,7 @@ async def choose(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return DAY
 
     if query.data == "manage":
-        timetable : TimeTable = context.bot_data["timetable"]
+        timetable : TimeTable = context.bot_data[BotData.TIMETABLE]
 
         keyboard = []
 
@@ -56,7 +57,7 @@ async def choose(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def list_days_to_message(query, context, day):
-    timetable: TimeTable = context.bot_data["timetable"]
+    timetable: TimeTable = context.bot_data[BotData.TIMETABLE]
 
     keyboard = []
 
@@ -90,7 +91,7 @@ async def delete_course(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.delete_message()
         return ConversationHandler.END
 
-    timetable: TimeTable = context.bot_data["timetable"]
+    timetable: TimeTable = context.bot_data[BotData.TIMETABLE]
 
     day, index = query.data.split(" ")
 
@@ -178,7 +179,7 @@ async def confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
 
     if  query.data == "yes":
-        time_table = context.bot_data["timetable"]
+        time_table = context.bot_data[BotData.TIMETABLE]
 
         # Save
         time_table.add(context.user_data["time_start"], context.user_data["time_end"], context.user_data["course"], context.user_data["room"], context.user_data["day"])

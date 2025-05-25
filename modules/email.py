@@ -1,11 +1,7 @@
-
-from typing import Optional
-
 from imap_tools import MailBox, AND
 import os
 
-import openai_api
-from pydantic import BaseModel, Field
+from agents.email_summary_agent import get_email_summary_agent, EmailResponse
 
 
 class Email:
@@ -19,7 +15,7 @@ class Email:
         self.spam_folder = "spam"
         self.reported = []
 
-        self.client = openai_api.OpenAI_API(os.getenv("OPENAI_KEY"))
+        self.client = get_email_summary_agent()
 
 
     def add_excluded_folder(self, folder):
@@ -52,20 +48,13 @@ class Email:
         with MailBox(self.imap_server).login(self.address, self.password) as mailbox:
             mailbox.move(email.uid, folder)
 
-    def summarize_new(self):
+    async def summarize_new(self):
         summary = []
         unread = self.get_unread_emails()
 
         for e in unread:
             if e.uid not in self.reported:
-                response : EmailResponse = self.client.simple_completion(
-                    instruction="Summarize the email (in it's original language) as much as possible the summary just needs to give overview not pass over all information. "
-                                "If the email seems suspicious or it's advertisement mark it as spam and don't provide a summary. "
-                                "If the email contains any events with dates and times, provide the event details."
-                                "You are free to use markdown to format the response.",
-                    message=f'{e.subject} {e.text} \n timestamp: {e.date.isoformat()}',
-                    schema=EmailResponse
-                ).parsed
+                response : EmailResponse = (await self.client.run(f"{e.subject} {e.text} \n timestamp: {e.date.isoformat()}")).output
                 self.reported.append(e.uid)
 
                 if response.spam:
@@ -75,26 +64,6 @@ class Email:
 
         return summary
 
-
-class Event(BaseModel):
-    title: str
-    description: str
-    all_day: bool = Field(json_schema_extra={'description': "If no start time is provided, return as True"})
-    start: Optional[str] = Field(default=None, json_schema_extra={'type': ['string', 'null'], 'description': 'Date and time in ISO format'})
-    end: Optional[str] = Field(default=None, json_schema_extra={'type': ['string', 'null'], 'description': 'Date and time in ISO format'})
-
-# Custom schema generator
-## This is interesting, so two things here.
-## The openAI doesn't accept schema that has anyOf values in it, and that is what get's generated when you use Optional or | in pydantic.
-## So to make it work you have to add your own extra json_schema_extra to the field.
-## Second thing I noticed is that the order matters, it is safe to assume the AI generates the json in order, so if like in this case the summary is optional
-## and depended on the spam value, it has to be later in the schema.
-## Having the summary be none for spam will hopefully save few cents on the API calls.
-class EmailResponse(BaseModel):
-    spam: bool
-    summary: Optional[str] = Field(default=None, json_schema_extra={'type': ['string', 'null']})
-    important: bool
-    event: Optional[Event] = Field(default=None, json_schema_extra={'type': ['object', 'null']})
 
 
 if __name__ == "__main__":

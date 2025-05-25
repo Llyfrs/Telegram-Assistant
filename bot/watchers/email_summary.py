@@ -8,9 +8,11 @@ from telegram.ext import Application, ContextTypes, CallbackQueryHandler
 from telegramify_markdown import markdownify
 
 from bot.classes.watcher import Watcher
+from enums.bot_data import BotData
+from enums.database import DatabaseConstants
 from modules.database import ValkeyDB
-from modules.email import Email, Event
-
+from modules.email import Email
+from agents.email_summary_agent import Event
 
 from typing import Dict
 
@@ -20,7 +22,7 @@ class EmailSummary(Watcher):
 
     interval = 100
     email = Email(
-        os.getenv("EMAIL"),
+        os.getenv("EMAIL_ADDRESS"),
         os.getenv("EMAIL_PASSWORD"),
         os.getenv("IMAP_SERVER"),
         os.getenv("IMAP_PORT")
@@ -55,13 +57,13 @@ class EmailSummary(Watcher):
     @classmethod
     async def job(cls, context: ContextTypes.DEFAULT_TYPE) -> None:
 
-        chat_id = ValkeyDB().get_serialized("chat_id")
+        chat_id = ValkeyDB().get_serialized(DatabaseConstants.EMAIL_CHAT_ID)
 
         if chat_id is None:
             logger.error("chat_id is not set")
             return
 
-        summary = cls.email.summarize_new()
+        summary = await cls.email.summarize_new()
 
         if len(summary) > 0:
             logger.info(f"Processing {len(summary)} new emails")
@@ -104,7 +106,7 @@ class EmailSummary(Watcher):
     async def create_event(cls, event: Event) -> bool:
         """Create an event from the callback query and add it to the calendar"""
 
-        chat_id = ValkeyDB().get_serialized("chat_id")
+        chat_id = ValkeyDB().get_serialized(DatabaseConstants.EMAIL_CHAT_ID)
 
         if chat_id is None:
             logger.error("chat_id is not set")
@@ -147,7 +149,7 @@ class EmailSummary(Watcher):
 
         await query.answer()
 
-        calendar = context.bot_data["calendar"]
+        calendar = context.bot_data[BotData.CALENDAR]
 
         event = cls.events.pop(query.message.message_id)
 
@@ -199,7 +201,7 @@ class EmailSummary(Watcher):
 
 
 
-def blocking_add_event(event: Event) -> bool:
+async def blocking_add_event(event: Event) -> bool:
 
     logging.info(f"Blocking add event {event}")
 
@@ -208,7 +210,7 @@ def blocking_add_event(event: Event) -> bool:
         await asyncio.sleep(5)
         await EmailSummary.create_event(event)
 
-    asyncio.create_task(delayed_create_event())
+    await delayed_create_event()
     return True
 
 

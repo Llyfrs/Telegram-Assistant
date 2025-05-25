@@ -5,6 +5,7 @@ from telegram.ext import ContextTypes, CommandHandler, ConversationHandler, Mess
 
 from bot.classes.command import Command
 from bot.commands.time_table.time_table import cancel
+from enums.bot_data import BotData
 from modules.calendar import Calendar
 from modules.database import ValkeyDB
 
@@ -12,7 +13,7 @@ GET_TOKEN = 0
 
 async def enter(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    calendar : Calendar = context.bot_data["calendar"]
+    calendar : Calendar = context.bot_data[BotData.CALENDAR]
 
     auth_url = calendar.get_auth_link()
 
@@ -23,7 +24,7 @@ async def enter(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def get_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    calendar: Calendar = context.bot_data["calendar"]
+    calendar: Calendar = context.bot_data[BotData.CALENDAR]
 
     code = update.message.text
 

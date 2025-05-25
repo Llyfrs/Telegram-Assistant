@@ -1,10 +1,12 @@
 from bot.classes.command import command
+from enums.bot_data import BotData
 
 
 @command
 async def clear_thread(update, context):
     """ Clears the thread """
-
-    client = context.bot_data["client"]
-    client.clear_thread()
-    await update.message.reply_text(f"Thread cleared")
+    context.bot_data[BotData.MESSAGE_HISTORY] = []
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text="Thread cleared."
+    )
