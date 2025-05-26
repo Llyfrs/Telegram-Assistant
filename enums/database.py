@@ -11,3 +11,6 @@ class DatabaseConstants(str, Enum):
     EMAIL_CHAT_ID = "email_chat_id"
 
     DEBUG = "debug"
+
+    LOCATION = "location"
+    LOCATION_HISTORY = "location_history"

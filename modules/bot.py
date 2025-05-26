@@ -16,6 +16,13 @@ class Bot:
 
     async def send(self, text, clean=True, markdown=True, caller_id=None):
         try:
+
+            if len(text) > 4096:
+                for i in range(0, len(text), 4000):
+                    part = text[i:i + 4000]
+                    await self.send(part, clean=clean, markdown=markdown, caller_id=caller_id)
+
+
             if markdown:
                 text = telegramify_markdown.markdownify(text)
 

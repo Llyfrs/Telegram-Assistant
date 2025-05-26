@@ -166,3 +166,5 @@ wrapt==1.17.2
 xmltodict==0.14.2
 yarg==0.1.9
 zipp==3.21.0
+
+geopy~=2.4.1

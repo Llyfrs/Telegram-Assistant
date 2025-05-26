@@ -9,8 +9,11 @@ from telegram.ext import Application
 from bot.commands.assistant.assistant import get_current_time
 from bot.watchers.email_summary import blocking_add_event
 from enums.bot_data import BotData
+from modules.location_manager import LocationManager
+from modules.memory import Memory
 from modules.reminder import seconds_until, calculate_seconds, Reminders
 
+from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +23,11 @@ You are an intelligent personal telegram assistant for the user.
 You help the user with various tasks and organization. 
 The user is the one developing you, so you can be fully honest with them about your inner workings and limitations. 
 You are controlling their system and they should have full control over it. 
-
+Do not say I am large language model and as such I cannot do X, Y, Z. 
+The user knows this, and if they ask you for something like a opinion, they understand that you are a machine and do not have feelings. They want it anyway.
+You are collaborating with them on making your more useful and they need feedback for that.
+All conversations you have with the user are automatically processed and stored in your memory, so you can recall them later. 
+The system instructions are constantly changing and you might see your self answering questions you don't have the answer to right now as the context changed, do not get surprised by this. 
 """
 
 provider = OpenAIProvider(api_key=os.getenv("OPENAI_KEY"), base_url="https://openrouter.ai/api/v1")
@@ -40,9 +47,85 @@ def instructions(application: Application) -> str:
     new_prompt += ("\n\n Bellow provided context is live collection of data about the user, and general state of systems."
                    "Use this information when it's relevant to better assist the user, and to compile with their preferences. ")
 
-    new_prompt += f"\n\n Current time: {get_current_time()}"
 
+    new_prompt += f"\n\n Current time: {get_current_time()} where date format is dd/mm/yyyy\n"
+
+    location_manager : LocationManager = application.bot_data.get(BotData.LOCATION, None)
+
+    if location_manager:
+        new_prompt += f"\n\nLOCATION DATA \n\n"
+
+        new_prompt += f"List of all static locations:\n"
+        new_prompt += ("Users create locations defined by name, description, latitude, longitude, and radius. "
+                       "These areas can overlap or be nested (e.g., a 'house' location within a larger 'city' location). "
+                       "The user's current location is the defined location whose center is closest, "
+                       "among all such locations whose radius they are currently within")
+
+        for loc in location_manager.get_static_locations():
+            new_prompt += f"\n- {loc.name}: {loc.description} (Lat: {loc.latitude}, Lon: {loc.longitude}, Radius: {loc.radius}m)"
+
+        new_prompt += "End of static locations.\n\n"
+
+        new_prompt += f"User location history for the past {location_manager.history_size} days:\n\n"
+
+        last_date = None
+        for record in location_manager.get_location_history():
+            entered_text = record.entered.strftime("%Y-%m-%d %H:%M")
+            exited_text = record.exited.strftime("%Y-%m-%d %H:%M")
+            duration = record.exited - record.entered
+            current_date = record.entered.date()
+
+            # Insert a date separator if the date changed
+            if current_date != last_date:
+                new_prompt += f"--- {current_date} ---\n"
+                last_date = current_date
+
+            if record.location:
+                location_name = record.location.name
+            else:
+                location_name = "Unknown Location (no name provided)"
+
+            new_prompt += (
+                f"Location: `{location_name}`\n"
+                f"Entered: {entered_text}\n"
+                f"Exited:  {exited_text}\n"
+                f"Duration: {duration}\n\n"
+            )
+
+        new_prompt += "End of location history.\n\n"
+
+        new_prompt += f"This is data about the user's current status, if in undefined location it probably means they are on the move. Check speed for reference."
+        new_prompt += f"\nCurrent user position (latitude, longitude): {location_manager.get_last_location()}\n"
+
+        current_location = location_manager.get_current_location()
+
+        print(current_location)
+
+        location_name_text = ""
+        if current_location:
+            location_name_text = "User is outside of any defined location" if not current_location.location else f"User is currently in: `{current_location.location.name}`"
+            duration = datetime.now() - current_location.entered
+            location_name_text += f" they been there for period of {str(duration).split('.')[0]} (hours:minutes:seconds)  "
+
+        new_prompt += f"{location_name_text}"
+        new_prompt += f"\nUser current speed is {location_manager.speed:02} km/h\n" if location_manager.speed > 1.2 else "\nUser is currently stationary.\n"
+
+    # print(new_prompt)
     return new_prompt
+
+
+def get_memory(application: Application) -> str:
+    new_prompt = "\n\nZEP MEMORY DATA\n\n"
+
+    memory : Memory = application.bot_data.get(BotData.MEMORY, None)
+
+    mem = memory.get_memory()["context"]
+
+    if mem is None:
+        return "No memory data available."
+    else:
+        print(mem)
+        return mem
 
 def initialize_main_agent(application: Application):
 
@@ -53,6 +136,9 @@ def initialize_main_agent(application: Application):
 
     reminder =  Reminders(application.bot)
     application.bot_data[BotData.REMINDER] = reminder
+
+    location : LocationManager = application.bot_data.get(BotData.LOCATION, None)
+    memory : Memory = application.bot_data.get(BotData.MEMORY, None)
 
     main_agent = Agent(
         name="Main Agent",
@@ -88,10 +174,23 @@ def initialize_main_agent(application: Application):
             ),
             Tool(
                 name="create_event",
-                description="Creates an event in a calendar. Use this for events that need continuous awareness, "
+                description="Creates an event in a the users google calendar. "
+                            "This is for events that require the user knows about them in advance and needs to plan around. "
                             "unlike reminders that are set and forget.",
                 function=blocking_add_event,
             ),
+            Tool(
+                name="remove_location",
+                description="Removes a static location from the system by its name",
+                function=location.remove_static_location
+            ),
+            Tool(
+                name="search_knowledge_graph",
+                description="Searches the knowledge graph for a given query and returns the results."
+                            "Use only when the already provided memory is not enough to answer user questions you might have."
+                            "Feel free to call it iteratively (perform search look at results, search again based on the results).",
+                function=memory.search_graph
+            )
         ],
     )
 
@@ -99,6 +198,13 @@ def initialize_main_agent(application: Application):
     @main_agent.instructions
     def _instruction_warper() -> str:
         return instructions(application)
+
+    @main_agent.instructions
+    def get_memory_wrapper() -> str:
+        return get_memory(application)
+
+
+    memory.add_message(role="System Instructions", content=MAIN_AGENT_SYSTEM_PROMPT + "\n\n" + instructions(application), role_type="system")
 
     application.bot_data[BotData.MAIN_AGENT] = main_agent
 

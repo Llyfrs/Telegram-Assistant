@@ -15,6 +15,8 @@ from bot.classes.CustomeAplicationBuilder import CustomApplicationBuilder
 from enums.database import DatabaseConstants
 from modules.calendar import Calendar
 from modules.database import ValkeyDB
+from modules.location_manager import LocationManager
+from modules.memory import Memory
 from modules.timetable import TimeTable
 from modules.torn import Torn
 from enums.bot_data import BotData
@@ -64,6 +66,8 @@ if __name__ == '__main__':
     ## loop = asyncio.get_event_loop()
     ## loop.run_until_complete(load_commands())
 
+    application.bot_data[BotData.LOCATION] = LocationManager(history_size=7)
+
     chat_id = ValkeyDB().get_serialized(DatabaseConstants.MAIN_CHAT_ID, None)
 
     API_KEY = ValkeyDB().get_serialized(DatabaseConstants.TORN_API_KEY, "")
@@ -77,6 +81,13 @@ if __name__ == '__main__':
     asyncio.run_coroutine_threadsafe(t.run(), loop)
 
     application.bot_data[BotData.TIMETABLE] = TimeTable(pytz.timezone('CET'))
+
+
+    application.bot_data[BotData.MEMORY] = Memory(
+        user_id="user",
+        api_key=os.environ.get('ZEP_API_KEY'),
+        first_name="User"
+    )
 
     initialize_main_agent(application)
 

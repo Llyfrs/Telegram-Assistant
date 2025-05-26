@@ -26,7 +26,7 @@ model = OpenAIModel('openai/gpt-4o-mini', provider=provider)
 class Event(BaseModel):
     title: str
     description: str
-    all_day: bool = Field(json_schema_extra={'description': "If no start time is provided, return as True"})
+    all_day: bool = Field(json_schema_extra={'description': "If start time is not specified, this needs to be set to true. It indicates that the event is full day event."})
     start: Optional[str] = Field(default=None, json_schema_extra={'type': ['string', 'null'], 'description': 'Date and time in ISO format'})
     end: Optional[str] = Field(default=None, json_schema_extra={'type': ['string', 'null'], 'description': 'Date and time in ISO format'})
 

@@ -13,6 +13,11 @@ class BotData(Enum):
     TIMETABLE = "timetable"
     MAIN_AGENT = "client"
 
+    MEMORY = "memory"
+
+
+    LOCATION = "location"
+
     EMAIL_CHAT_ID = "email_chat_id"
 
     MESSAGE_HISTORY = "message_history"
