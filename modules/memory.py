@@ -88,6 +88,7 @@ class Memory:
             data=json.dumps(json_obj)
         )
 
+
     def search_graph(self, query : str, scope : Literal["edges", "nodes"], limit : int =5):
 
         results = self.client.graph.search(
