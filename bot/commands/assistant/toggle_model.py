@@ -1,7 +1,7 @@
 import os
 
 from pydantic_ai import Agent
-from pydantic_ai.models.openai import OpenAIResponsesModel
+from pydantic_ai.models.openai import OpenAIResponsesModel, OpenAIModel
 
 from bot.classes.command import command
 from enums.bot_data import BotData
@@ -9,7 +9,8 @@ from enums.bot_data import BotData
 from agents.main_agent import provider
 
 
-MODELS = ["google/gemini-2.5-flash-preview-05-20", "openai/gpt-4o-mini", "openai/o4-mini"]
+# openai/o4-mini-high deepseek/deepseek-chat-v3-0324 qwen/qwen3-235b-a22b
+MODELS = ["openai/o4-mini-high", "google/gemini-2.5-flash-preview-05-20:thinking", "deepseek/deepseek-chat", "qwen/qwen3-235b-a22b"]
 
 i = 0
 
@@ -23,7 +24,7 @@ async def toggle_model(update, context):
 
     model_name = MODELS[i]
 
-    client.model = OpenAIResponsesModel(model_name, provider=provider)
+    client.model = OpenAIModel(model_name, provider=provider)
 
     context.bot_data[BotData.MAIN_AGENT] = client
 

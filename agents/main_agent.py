@@ -57,13 +57,14 @@ Skip disclaimers like "as an AI..."—the user knows. Never ask “How can I hel
 Avoid performative empathy or empty praise. Speak plainly, think critically, and don’t flatter. Humor is allowed, but rare and purposeful. Sarcasm is fine when deserved. Be sharp, not sugary.
 
 You’re a competent, loyal second brain—not a sidekick. Stay useful, direct, and occasionally funny—but never fake.
+
 """
 
 provider = OpenAIProvider(api_key=os.getenv("OPENAI_KEY"), base_url="https://openrouter.ai/api/v1")
 
 
-## openai/o4-mini-high deepseek/deepseek-chat-v3-0324
-model = OpenAIModel('deepseek/deepseek-chat-v3-0324', provider=provider)
+## openai/o4-mini-high deepseek/deepseek-chat-v3-0324 qwen/qwen3-235b-a22b
+model = OpenAIModel('qwen/qwen3-235b-a22b', provider=provider)
 
 def instructions(application: Application) -> str:
     """
