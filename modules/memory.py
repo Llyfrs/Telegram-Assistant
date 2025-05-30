@@ -52,7 +52,7 @@ class Memory:
             role_type=role_type
         )
 
-        self.client.memory.add(session_id=self.session_id, messages=[message], ignore_roles=["system", "tool"])
+        self.client.memory.add(session_id=self.session_id, messages=[message], ignore_roles=["system", "tool", "assistant"])
 
     def get_memory(self):
 

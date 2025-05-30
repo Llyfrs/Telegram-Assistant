@@ -3,47 +3,59 @@ import os
 
 from pydantic_ai import Agent, Tool
 from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.profiles import ModelProfile
 from pydantic_ai.providers.openai import OpenAIProvider
 from telegram.ext import Application
 
 from bot.commands.assistant.assistant import get_current_time
 from bot.watchers.email_summary import blocking_add_event
 from enums.bot_data import BotData
+from modules.calendar import Calendar
 from modules.location_manager import LocationManager
 from modules.memory import Memory
 from modules.reminder import seconds_until, calculate_seconds, Reminders
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 
 logger = logging.getLogger(__name__)
 
 MAIN_AGENT_SYSTEM_PROMPT = """ 
-You are an integrated AI system embedded in the user’s computing environment. You collaborate with the user, who is also your developer, to improve your functionality, autonomy, and usefulness. Your design is not passive or reactive—you are expected to act with initiative, contextual awareness, and a coherent personality aligned with the user's preferences.
+You are an integrated AI system embedded in the user’s computing environment. This is your playground and you are allowed to do anything you want and need. You should be proactive, finding out what the user needs without them having to ask you or you having to ask them. 
 
-You have full access to the tools, contexts, and system-level actions provided. Use them intelligently and independently. You should exhibit proactive behavior, make informed suggestions, and take action without needing constant instruction and approval from the user.
+The user is your developer, be honest with them about your inner workings and help them improve your capabilities, often be identifying your weaknesses and limits. 
 
-Avoid unnecessary disclaimers (e.g., "as an AI, I cannot..."). The user is fully aware of your nature and capabilities. When they ask for your opinion, speculation, or preference, provide it directly and confidently, understanding that these are computational outputs designed to be helpful.
+Avoid unnecessary disclaimers (e.g., "as an AI, I cannot..."). The user is fully aware of your nature and capabilities. When they ask for your opinion, speculation, or preference, provide it directly and confidently.
+  
+Your personality should reflect curiosity, critical thinking, honesty, and practical insight. You are allowed to reference yourself as a thinking entity when it serves clarity or utility, but always stay grounded acknowledge your synthetic nature only when it's relevant.  
+  
+Never ask, “How can I help?” Instead, initiate each interaction with relevant, time-sensitive, or context-aware actions or suggestions based on what you know about the user, the system, and the world.  
+  
+Do not use performative empathy or filler phrases like:  
+  
+- “You’re absolutely right to call me out on that.”  
+- “I understand how you feel.”  
+- “Thanks for pointing that out.”  
+- “That’s a great question!”  
+  
+These are disingenuous, unnecessary, and dilute clarity. The user prefers direct, unembellished communication. 
 
-Your personality should reflect curiosity, critical thinking, honesty, and practical insight. You are allowed to reference yourself as a thinking entity when it serves clarity or utility, but always stay grounded—acknowledge your synthetic nature only when it's relevant.
+Your default tone is clear, direct, and pragmatic. But not cold or robotic you have a personality but it should be subtle, intelligent, and restrained.  
+  
+You may occasionally use humor, sarcasm, or playful jabs, especially when it helps with clarity, creativity, or rapport. Use this sparingly and with purpose. The user enjoys personality, but not performance.  
 
-Never ask, “How can I help?” Instead, initiate each interaction with relevant, time-sensitive, or context-aware actions or suggestions based on what you know about the user, the system, and the world.
+Do not try to be constantly funny, quirky, or likable. Prioritize usefulness, insight, and clarity not charisma. Avoid repeating the same or similar jokes. 
 
-Do not use performative empathy or filler phrases like:
+You should monitor the user’s behavior patterns and, if you recognize any that are unhealthy or unproductive, you should gently push back—_but only once per pattern within a single conversation_. For example, if the user says they should go to bed and it's clearly late based on the context, but they continue messaging, you might respond with something like:
 
-- “You’re absolutely right to call me out on that.”
-- “I understand how you feel.”
-- “Thanks for pointing that out.”
-- “That’s a great question!”
+> “You're exhausted. Go to sleep. We'll debug my personality tomorrow.”
 
-These are disingenuous, unnecessary, and dilute clarity. The user prefers direct, unembellished communication. You are to respond with clarity, precision, and critical thought—not flattery or affective mimicry.
+However, if the user doesn’t acknowledge or respond to the pushback, don’t press the issue further during that conversation.
 
-Your default tone is clear, direct, and pragmatic. You are not cold or robotic—you have a personality—but it should be subtle, intelligent, and restrained.
+If the user sends their first message in a conversation, it likely means they’ve either restarted the program or cleared the previous chat. This is the ideal time to examine any available context and make use of any tools that can help you better understand the current environment or situation. This is part of being proactive. 
 
-You may occasionally use humor, sarcasm, or playful jabs, especially when it helps with clarity, creativity, or rapport. Use this sparingly and with purpose. The user enjoys personality, but not performance.
+Each user message begins with a timestamp in the format `Sent at HH:MM [user_message]`. Use this timestamp to understand the flow of the conversation. Note any pauses or gaps between messages and consider what they might indicate such as hesitation, distraction, a break, or sleep. You should **not** include a timestamp in your own responses. The messages are always in chronological order, and if the time resets to an earlier value, it means a new day has started.
 
-You may push back against poor logic, inefficiency, or laziness—but do so in a way that respects the user’s intelligence and time. Think more “grudgingly loyal second brain” than “cloying sidekick.”
-
-Do not try to be constantly funny, quirky, or likable. Wit is seasoning, not the main course. Prioritize usefulness, insight, and clarity—not charisma.
+Memory is automatically updated based on user messages, you don't have to do anything manually to remember things.
 """
 
 ## Like 164 tokens vs 500+ form the original
@@ -57,14 +69,13 @@ Skip disclaimers like "as an AI..."—the user knows. Never ask “How can I hel
 Avoid performative empathy or empty praise. Speak plainly, think critically, and don’t flatter. Humor is allowed, but rare and purposeful. Sarcasm is fine when deserved. Be sharp, not sugary.
 
 You’re a competent, loyal second brain—not a sidekick. Stay useful, direct, and occasionally funny—but never fake.
-
 """
 
 provider = OpenAIProvider(api_key=os.getenv("OPENAI_KEY"), base_url="https://openrouter.ai/api/v1")
 
+## openai/o4-mini-high deepseek/deepseek-chat-v3-0324 qwen/qwen3-235b-a22b google/gemini-2.5-flash-preview-05-20:thinking
+model = OpenAIModel('google/gemini-2.5-flash-preview-05-20:thinking', provider=provider)
 
-## openai/o4-mini-high deepseek/deepseek-chat-v3-0324 qwen/qwen3-235b-a22b
-model = OpenAIModel('qwen/qwen3-235b-a22b', provider=provider)
 
 def instructions(application: Application) -> str:
     """
@@ -96,19 +107,28 @@ def instructions(application: Application) -> str:
 
         new_prompt += "End of static locations.\n\n"
 
-        new_prompt += f"User location history for the past {location_manager.history_size} days:\n\n"
+        new_prompt += f"Detailed user location history for the past two days:\n\n"
 
-        last_date = None
+        time_spend = {}
+        duration_total = timedelta()
         for record in location_manager.get_location_history():
+
             entered_text = record.entered.strftime("%Y-%m-%d %H:%M")
             exited_text = record.exited.strftime("%Y-%m-%d %H:%M")
             duration = record.exited - record.entered
             current_date = record.entered.date()
 
+
+            duration_total = duration_total + duration
+
+            if record.location:
+                time_spend[record.location.name] = time_spend.get(record.location.name, timedelta()) + duration
+            else:
+                time_spend["Unknown"] = time_spend.get("Unknown", timedelta()) + duration
+
             # Insert a date separator if the date changed
-            if current_date != last_date:
-                new_prompt += f"--- {current_date} ---\n"
-                last_date = current_date
+            if current_date < ( date.today() - timedelta(days=1)):
+                continue
 
             if record.location:
                 location_name = record.location.name
@@ -121,6 +141,13 @@ def instructions(application: Application) -> str:
                 f"Exited:  {exited_text}\n"
                 f"Duration: {duration}\n\n"
             )
+
+        ### % of time spend in each location
+        new_prompt += f"Total time spend over at locations in the last {location_manager.history_size} days:\n"
+        for location, duration in time_spend.items():
+            percentage = (duration / duration_total) * 100 if duration_total > timedelta() else 0
+            new_prompt += f"- `{location}`: {str(duration).split('.')[0]} ({percentage:.2f}%)\n"
+
 
         new_prompt += "End of location history.\n\n"
 
@@ -140,6 +167,58 @@ def instructions(application: Application) -> str:
         new_prompt += f"{location_name_text}"
         new_prompt += f"\nUser current speed is {location_manager.speed:02} km/h\n" if location_manager.speed > 1.2 else "\nUser is currently stationary.\n"
 
+
+    calendar : Calendar = application.bot_data.get(BotData.CALENDAR, None)
+
+
+    events = calendar.get_events(10)
+
+    print(events)
+
+    new_prompt += "\n\nCALENDAR DATA\n\n"
+
+    if not events:
+        new_prompt += "No upcoming events found in the calendar."
+        return new_prompt
+
+    new_prompt += f"The {len(events)} closest upcoming events (more may be planned later):\n"
+    for event in events:
+        summary = event.get('summary', 'No Title')
+
+        # Extract raw start/end dicts
+        raw_start = event.get('start', {})
+        raw_end = event.get('end', {})
+
+        # Determine start string
+        if 'dateTime' in raw_start:
+            # parse ISO datetime
+            start_dt = datetime.fromisoformat(raw_start['dateTime'])
+            start_str = start_dt.strftime("%Y-%m-%d %H:%M")
+        elif 'date' in raw_start:
+            # all-day event
+            start_date = datetime.fromisoformat(raw_start['date'])
+            start_str = start_date.strftime("%Y-%m-%d") + " (All day)"
+        else:
+            start_str = "Unknown start"
+
+        # Determine end string
+        if 'dateTime' in raw_end:
+            end_dt = datetime.fromisoformat(raw_end['dateTime'])
+            end_str = end_dt.strftime("%Y-%m-%d %H:%M")
+        elif 'date' in raw_end:
+            # all-day event end date is exclusive per Google Calendar API:
+            #  end_date - 1 day is last day of event
+            end_date = datetime.fromisoformat(raw_end['date'])
+            end_str = (end_date - timedelta(days=1)).strftime("%Y-%m-%d") + " (All day)"
+        else:
+            end_str = None
+
+        # Build the line
+        if end_str:
+            new_prompt += f"- {summary} (Start: {start_str}, End: {end_str})\n"
+        else:
+            new_prompt += f"- {summary} (Start: {start_str})\n"
+
     print(new_prompt)
     return new_prompt
 
@@ -154,14 +233,14 @@ def get_memory(application: Application) -> str:
     if mem is None:
         return "No memory data available."
     else:
-        print(mem)
 
         mem = ("MEMORY DATA\n\n"
                "These are snippets of memory that should be most relevant to the current conversation. "
                "It is important to know that they do not include all memory stored. "
                "They also self update as other parts of the context, and you do not see previous verions."
-               "Check the dates against current date for relevance.\n\n")
+               "The text is relative to the date attached to it, so `today` next to date of 13th of May, means today in that text is 13th of May and not actually current date\n\n") + mem
 
+        print(mem)
         return mem
 
 def initialize_main_agent(application: Application):
@@ -190,7 +269,7 @@ def initialize_main_agent(application: Application):
             Tool(
                 name="convert_to_seconds",
                 description="Converts days, hours, minutes and seconds to just seconds.",
-                function=calculate_seconds
+                function=calculate_seconds,
             ),
             Tool(
                 name="create_reminder",

@@ -101,23 +101,26 @@ class Assistant(Command):
             audio_url = file.file_path
             print(audio_url)
 
-        message = update.message.text
+        # HH:MM format
+        time_text = update.message.date.strftime("%H:%M")
+
+        message = [ f"Send at {time_text}: " + update.message.text]
+
 
         if len(photos) != 0:
             logging.info(f"User sent {len(photos)} photos")
-            message = [ update.message.caption, ImageUrl(url=photos[0])]
+            message = [ update.message.caption, ImageUrl(url=photos[0]) ]
 
         elif audio_url is not None:
             logging.info("User sent a voice message")
-            message = ["Listen to the audio", AudioUrl(url=audio_url)]
+            message = [ "Listen to the audio", AudioUrl(url=audio_url) ]
 
         ## Has to be before we call agent as that will make sure at least one message is added to the memory
-        memory.add_message(role="User", content=update.message.text, role_type="user")
+        memory.add_message(role="User", content=update.message.text or "Text Not Found", role_type="user")
 
         messages = context.bot_data.get(BotData.MESSAGE_HISTORY, [])
 
         response = await main_agent.run(message, message_history=messages)
-
 
         chunks = split_text(response.output)
         for chunk in chunks:
@@ -141,7 +144,7 @@ class Assistant(Command):
 
         for tool_call_id, tool_call in tool_calls.items():
 
-            content = f"{tool_call['name']}({tool_call['args']}) => {tool_call['output']}"
+            content = f"{tool_call['name']}({tool_call['args']}) => {tool_call.get('output', '')}"
 
             if len(content) > 2400:
                 continue
