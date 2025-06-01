@@ -132,7 +132,7 @@ class Torn:
 
 
     async def get_user(self):
-        url = f"https://api.torn.com/user/?selections=profile,cooldowns,newevents,bars,battlestats&key={self.api_key}"
+        url = f"https://api.torn.com/user/?selections=profile,cooldowns,newevents,bars,battlestats,icons&key={self.api_key}"
         return await self.get(url)
 
     async def get_company(self):
