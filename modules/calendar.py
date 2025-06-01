@@ -63,19 +63,25 @@ class Calendar:
 
     ## https://developers.google.com/calendar/api/v3/reference/events/list
     def get_events(self, max_results=10):
-        service = build('calendar', 'v3', credentials=self.token)
 
-        # Call the Calendar API
-        now = datetime.utcnow().isoformat() + 'Z'
-        events_result = service.events().list(calendarId='primary', timeMin=now,
-                                              maxResults=max_results, singleEvents=True,
-                                              orderBy='startTime').execute()
+        try:
+            service = build('calendar', 'v3', credentials=self.token)
 
-        events = events_result.get('items', [])
+            # Call the Calendar API
+            now = datetime.utcnow().isoformat() + 'Z'
+            events_result = service.events().list(calendarId='primary', timeMin=now,
+                                                  maxResults=max_results, singleEvents=True,
+                                                  orderBy='startTime').execute()
 
-        return events
+            events = events_result.get('items', [])
 
-    ## https://developers.google.com/calendar/api/v3/reference/events/insert
+            return events
+
+        except Exception as e:
+            print(f"An error occurred while fetching events: {e}")
+            return []
+
+        ## https://developers.google.com/calendar/api/v3/reference/events/insert
     def add_event(self, start: datetime, end :datetime, summary, description=None, location=None, all_day=False):
         service = build('calendar', 'v3', credentials=self.token)
 

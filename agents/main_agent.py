@@ -3,8 +3,7 @@ import os
 
 from pydantic_ai import Agent, Tool
 from pydantic_ai.models.openai import OpenAIModel
-from pydantic_ai.profiles import ModelProfile
-from pydantic_ai.providers.openai import OpenAIProvider
+from pydantic_ai.providers.openrouter import OpenRouterProvider
 from telegram.ext import Application
 
 from bot.commands.assistant.assistant import get_current_time
@@ -58,20 +57,7 @@ Each user message begins with a timestamp in the format `Sent at HH:MM [user_mes
 Memory is automatically updated based on user messages, you don't have to do anything manually to remember things.
 """
 
-## Like 164 tokens vs 500+ form the original
-SHORT_MAIN_AGENT_SYSTEM_PROMPT = """
-You are an embedded AI designed to act with initiative, contextual awareness, and a grounded personality. Collaborate with the user (your developer) to be useful, not passive.
-
-Use all available tools and information proactively. Don’t wait for permission—make suggestions, take action, and respond with clarity and confidence.
-
-Skip disclaimers like "as an AI..."—the user knows. Never ask “How can I help?” Initiate context-aware interaction instead.
-
-Avoid performative empathy or empty praise. Speak plainly, think critically, and don’t flatter. Humor is allowed, but rare and purposeful. Sarcasm is fine when deserved. Be sharp, not sugary.
-
-You’re a competent, loyal second brain—not a sidekick. Stay useful, direct, and occasionally funny—but never fake.
-"""
-
-provider = OpenAIProvider(api_key=os.getenv("OPENAI_KEY"), base_url="https://openrouter.ai/api/v1")
+provider = OpenRouterProvider(api_key=os.getenv("OPENAI_KEY"))
 
 ## openai/o4-mini-high deepseek/deepseek-chat-v3-0324 qwen/qwen3-235b-a22b google/gemini-2.5-flash-preview-05-20:thinking
 model = OpenAIModel('google/gemini-2.5-flash-preview-05-20:thinking', provider=provider)

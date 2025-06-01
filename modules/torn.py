@@ -58,6 +58,8 @@ class Torn:
         self.last_messages= {}
         self.is_stacking = False
 
+        self.cache = {}
+
 
     def set_stacking(self, value):
         self.is_stacking = value
@@ -99,6 +101,11 @@ class Torn:
             logging.error(f"Failed to send message: {e} in message: {text}")
 
     async def get(self, url):
+
+        if self.cache.get(url, None) is not None:
+            if self.cache[url].get("expires", 0) > time.time():
+                return self.cache[url]["data"]
+
         response = requests.get(url).json()
 
         while response.get("error") is not None:
@@ -114,6 +121,12 @@ class Torn:
 
             response = requests.get(url).json()
             await asyncio.sleep(10)
+
+        if response.get("error") is None:
+            self.cache[url] = {
+                "data": response,
+                "expires": time.time() + 30  # Cache for 5 minutes
+            }
 
         return response
 
@@ -197,11 +210,11 @@ class Torn:
         ## Tell player to use up their cooldowns if they can
         if status.get("state") == "Okay" or status.get("state") == "Hospitalized":
 
-            if cooldowns.get("drug") == 0:
-                message += "\n >Take Xanax 💊 [here](https://www.torn.com/item.php#drugs-items)"
+           # if cooldowns.get("drug") == 0:
+                # message += "\n >Take Xanax 💊 [here](https://www.torn.com/item.php#drugs-items)"
 
-            #if cooldowns.get("medical") == 0: # I mean I could turn it on but I don't want
-                #message += "\n > Use blood bag 💉 [here](https://www.torn.com/factions.php?step=your&type=1#/tab=armoury&start=0&sub=medical)"
+            if cooldowns.get("medical") == 0: # I mean I could turn it on but I don't want
+                message += "\n > Use blood bag 💉 [here](https://www.torn.com/factions.php?step=your&type=1#/tab=armoury&start=0&sub=medical)"
 
             if cooldowns.get("booster") == 0:
                 message += "\n > Use boosters 🍺 [here](https://www.torn.com/factions.php?step=your&type=1#/tab=armoury&start=0&sub=boosters)"
@@ -522,7 +535,7 @@ class Torn:
         schedule.every(30).seconds.do(lambda : asyncio.run_coroutine_threadsafe(self.update_user(), loop))
         schedule.every(30).seconds.do(lambda : asyncio.run_coroutine_threadsafe(self.newevents(), loop))
         schedule.every(10).seconds.do(lambda : asyncio.run_coroutine_threadsafe(self.bazaar_alert(), loop))
-        schedule.every(10).minutes.do(lambda : asyncio.run_coroutine_threadsafe(self.bars(), loop))
+        # schedule.every(10).minutes.do(lambda : asyncio.run_coroutine_threadsafe(self.bars(), loop))
         schedule.every(5).minutes.do(lambda : asyncio.run_coroutine_threadsafe(self.cooldowns(), loop))
 
         schedule.every().day.at("06:50", cet).do(lambda: asyncio.run_coroutine_threadsafe(self.update_company(), loop))
