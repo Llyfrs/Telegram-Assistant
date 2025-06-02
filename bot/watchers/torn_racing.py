@@ -6,9 +6,6 @@ from enums.database import DatabaseConstants
 from modules.database import ValkeyDB
 from modules.torn import Torn
 
-
-# icon17
-
 @run_repeated(interval=30)
 async def torn_racing(context: ContextTypes.DEFAULT_TYPE):
 

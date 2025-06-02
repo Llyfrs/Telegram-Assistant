@@ -7,7 +7,7 @@ from modules.database import ValkeyDB
 from modules.torn import Torn
 
 
-@run_repeated(interval=30)
+@run_repeated(interval=90)
 async def torn_hospital(context: ContextTypes.DEFAULT_TYPE):
     """
     Checks if the user is in the hospital. If not notifies them.
