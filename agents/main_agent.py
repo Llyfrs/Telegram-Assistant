@@ -60,7 +60,7 @@ Memory is automatically updated based on user messages, you don't have to do any
 provider = OpenRouterProvider(api_key=os.getenv("OPENAI_KEY"))
 
 ## openai/o4-mini-high deepseek/deepseek-chat-v3-0324 qwen/qwen3-235b-a22b google/gemini-2.5-flash-preview-05-20:thinking
-model = OpenAIModel('google/gemini-2.5-flash-preview-05-20:thinking', provider=provider)
+model = OpenAIModel('nvidia/llama-3.1-nemotron-ultra-253b-v1', provider=provider)
 
 
 def instructions(application: Application) -> str:
