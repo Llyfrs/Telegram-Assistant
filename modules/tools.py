@@ -4,6 +4,8 @@ This file is containing tools that I use around the bot, it helps me keep the co
 
 import re
 
+from modules.file_system import InMemoryFileSystem
+
 
 def escape_chars(match):
     char = match.group(0)
@@ -55,3 +57,13 @@ def debug(steps):
 
     """Looks like it shouldn't be reversed. Even thous it acted like it should be."""
     return debug_messages
+
+
+def init_file_manager():
+    """Initialize file manager"""
+    file_manager = InMemoryFileSystem()
+    file_manager.mkdir("/Memory")
+    file_manager.mkdir("/Logs")
+    file_manager.mkdir("/Daily")
+
+    return file_manager

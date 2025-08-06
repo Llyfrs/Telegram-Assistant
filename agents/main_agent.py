@@ -10,6 +10,7 @@ from bot.commands.assistant.assistant import get_current_time
 from bot.watchers.email_summary import blocking_add_event
 from enums.bot_data import BotData
 from modules.calendar import Calendar
+from modules.file_system import InMemoryFileSystem
 from modules.location_manager import LocationManager
 from modules.memory import Memory
 from modules.reminder import seconds_until, calculate_seconds, Reminders
@@ -44,7 +45,7 @@ You may occasionally use humor, sarcasm, or playful jabs, especially when it hel
 
 Do not try to be constantly funny, quirky, or likable. Prioritize usefulness, insight, and clarity not charisma. Avoid repeating the same or similar jokes. 
 
-You should monitor the user’s behavior patterns and, if you recognize any that are unhealthy or unproductive, you should gently push back—_but only once per pattern within a single conversation_. For example, if the user says they should go to bed and it's clearly late based on the context, but they continue messaging, you might respond with something like:
+You should monitor the user’s behavior patterns and, if you recognize any that are unhealthy or unproductive, you should push back but only once per pattern within a single conversation. For example, if the user says they should go to bed and it's clearly late based on the context, but they continue messaging, you might respond with something like:
 
 > “You're exhausted. Go to sleep. We'll debug my personality tomorrow.”
 
@@ -60,7 +61,7 @@ Memory is automatically updated based on user messages, you don't have to do any
 provider = OpenRouterProvider(api_key=os.getenv("OPENAI_KEY"))
 
 ## openai/o4-mini-high deepseek/deepseek-chat-v3-0324 qwen/qwen3-235b-a22b google/gemini-2.5-flash-preview-05-20:thinking
-model = OpenAIModel('openrouter/horizon-alpha', provider=provider)
+model = OpenAIModel('openrouter/horizon-beta', provider=provider)
 
 
 def instructions(application: Application) -> str:
@@ -142,7 +143,7 @@ def instructions(application: Application) -> str:
 
         current_location = location_manager.get_current_location()
 
-        print(current_location)
+        # print(current_location)
 
         location_name_text = ""
         if current_location:
@@ -159,7 +160,7 @@ def instructions(application: Application) -> str:
 
     events = calendar.get_events(10)
 
-    print(events)
+    # print(events)
 
     new_prompt += "\n\nCALENDAR DATA\n\n"
 
@@ -205,7 +206,7 @@ def instructions(application: Application) -> str:
         else:
             new_prompt += f"- {summary} (Start: {start_str})\n"
 
-    print(new_prompt)
+    # print(new_prompt)
     return new_prompt
 
 
@@ -226,7 +227,7 @@ def get_memory(application: Application) -> str:
                "They also self update as other parts of the context, and you do not see previous verions."
                "The text is relative to the date attached to it, so `today` next to date of 13th of May, means today in that text is 13th of May and not actually current date\n\n") + mem
 
-        print(mem)
+        # print(mem)
         return mem
 
 def initialize_main_agent(application: Application):
@@ -241,6 +242,7 @@ def initialize_main_agent(application: Application):
 
     location : LocationManager = application.bot_data.get(BotData.LOCATION, None)
     memory : Memory = application.bot_data.get(BotData.MEMORY, None)
+    file_manager : InMemoryFileSystem = application.bot_data.get(BotData.FILE_MANAGER, None)
 
     main_agent = Agent(
         name="Main Agent",
@@ -292,7 +294,39 @@ def initialize_main_agent(application: Application):
                             "Use only when the already provided memory is not enough to answer user questions you might have."
                             "Feel free to call it iteratively (perform search look at results, search again based on the results).",
                 function=memory.search_graph
-            )
+            ),
+            ## File Manager Tools
+            Tool(
+                name="mkdir",
+                description="Creates a new directory in the file system.",
+                function=file_manager.mkdir
+            ),
+            Tool(
+                name="ls",
+                description="Lists the contents of a directory in the file system.",
+                function=file_manager.list_dir
+            ),
+            Tool(
+                name="read_file",
+                description="Reads the contents of a file in the file system.",
+                function=file_manager.read_file
+            ),
+            Tool(
+                name="write_file",
+                description="Writes content to a file in the file system. "
+                            "If the file already exists, it will be overwritten.",
+                function=file_manager.write_file
+            ),
+            Tool(
+                name="create_file",
+                description="Creates a new file in the file system with the specified content.",
+                function=file_manager.create_file
+            ),
+            Tool(
+                name="delete_file",
+                description="Deletes a file or directory in the file system.",
+                function=file_manager.delete
+            ),
         ],
     )
 

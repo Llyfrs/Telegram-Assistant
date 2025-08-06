@@ -15,6 +15,8 @@ class BotData(Enum):
 
     MEMORY = "memory"
 
+    FILE_MANAGER = "file_manager"
+
 
     LOCATION = "location"
 

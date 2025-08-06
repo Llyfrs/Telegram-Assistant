@@ -15,9 +15,11 @@ from bot.classes.CustomeAplicationBuilder import CustomApplicationBuilder
 from enums.database import DatabaseConstants
 from modules.calendar import Calendar
 from modules.database import ValkeyDB
+from modules.file_system import InMemoryFileSystem
 from modules.location_manager import LocationManager
 from modules.memory import Memory
 from modules.timetable import TimeTable
+from modules.tools import init_file_manager
 from modules.torn import Torn
 from enums.bot_data import BotData
 
@@ -67,6 +69,10 @@ if __name__ == '__main__':
     ## loop.run_until_complete(load_commands())
 
     application.bot_data[BotData.LOCATION] = LocationManager(history_size=7)
+
+    application.bot_data[BotData.FILE_MANAGER] = ValkeyDB().get_serialized(DatabaseConstants.FILE_MANAGER, init_file_manager())
+
+
 
     chat_id = ValkeyDB().get_serialized(DatabaseConstants.MAIN_CHAT_ID, None)
 

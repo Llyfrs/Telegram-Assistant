@@ -48,7 +48,8 @@ class Bot:
             return message
 
         except Exception as exc:
-            logging.error(f"Error sending message: {exc}")
+            logging.error(f"Error sending message: {exc} with text: {text}")
+
 
     async def edit(self, message, text, markdown=True):
         try:

@@ -10,6 +10,8 @@ class DatabaseConstants(str, Enum):
 
     EMAIL_CHAT_ID = "email_chat_id"
 
+    FILE_MANAGER = "file_manager"
+
     DEBUG = "debug"
 
     LOCATION = "location"
