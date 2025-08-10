@@ -1,4 +1,6 @@
 import os
+import re
+
 
 class InMemoryFileSystem:
     def __init__(self):
@@ -69,6 +71,8 @@ class InMemoryFileSystem:
             return str(e)
 
     def delete(self, path : str):
+        """Delete a file or directory at the given path.
+        Deleting a directory will remove it and all its contents."""
         try:
             if path == "/":
                 return "Cannot delete root"
@@ -84,6 +88,7 @@ class InMemoryFileSystem:
             return str(e)
 
     def list_dir(self, path: str):
+        """List files and directories in the given path / folder."""
         try:
             if path == ".":
                 path = "/"
@@ -91,6 +96,47 @@ class InMemoryFileSystem:
             if isinstance(node, str):
                 return f"{path} is a file"
             return list(node.keys())
+        except Exception as e:
+            return str(e)
+
+    def search(self, query: str, case_sensitive: bool = False, regex: bool = False):
+        try:
+            node = self._get_node("/")  # Always start at root
+            if isinstance(node, str):
+                return "Root is a file, cannot search."
+
+            results = []
+            flags = 0 if case_sensitive else re.IGNORECASE
+            pattern = re.compile(query if regex else re.escape(query), flags)
+
+            def recurse(current_node, current_path):
+                for name, child in current_node.items():
+                    child_path = os.path.join(current_path, name)
+
+                    if isinstance(child, dict):
+                        recurse(child, child_path)
+                    else:
+                        # Check filename match
+                        if pattern.search(name):
+                            results.append({
+                                "match_in": "filename",
+                                "file": name
+                            })
+
+                        # Check file content match
+                        if isinstance(child, str):
+                            for i, line in enumerate(child.splitlines(), start=1):
+                                if pattern.search(line):
+                                    results.append({
+                                        "match_in": "content",
+                                        "file": name,
+                                        "line_number": i,
+                                        "line": line.strip()
+                                    })
+
+            recurse(node, "")
+            return results
+
         except Exception as e:
             return str(e)
 

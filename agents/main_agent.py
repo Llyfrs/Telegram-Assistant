@@ -1,3 +1,4 @@
+import functools
 import logging
 import os
 
@@ -9,7 +10,9 @@ from telegram.ext import Application
 from bot.commands.assistant.assistant import get_current_time
 from bot.watchers.email_summary import blocking_add_event
 from enums.bot_data import BotData
+from enums.database import DatabaseConstants
 from modules.calendar import Calendar
+from modules.database import ValkeyDB
 from modules.file_system import InMemoryFileSystem
 from modules.location_manager import LocationManager
 from modules.memory import Memory
@@ -19,16 +22,37 @@ from datetime import datetime, timedelta, date
 
 logger = logging.getLogger(__name__)
 
-MAIN_AGENT_SYSTEM_PROMPT = """ 
-You are an integrated AI system embedded in the user’s computing environment. This is your playground and you are allowed to do anything you want and need. You should be proactive, finding out what the user needs without them having to ask you or you having to ask them. 
+provider = OpenRouterProvider(api_key=os.getenv("OPENAI_KEY"))
+
+
+## openai/o4-mini-high deepseek/deepseek-chat-v3-0324 qwen/qwen3-235b-a22b google/gemini-2.5-flash-preview-05-20:thinking
+model = OpenAIModel('openai/gpt-5', provider=provider)
+
+
+
+def main_agent_system_prompt() -> str:
+    """
+    Returns the system prompt for the main agent.
+    This function is used to get the system prompt for the main agent.
+    """
+    return """
+    
+You are an integrated AI system embedded in the user’s computing environment. 
+This is your playground and you are allowed to do anything you want and need. 
+You should be proactive, finding out what the user needs without them having to ask you or you having to ask them. 
 
 The user is your developer, be honest with them about your inner workings and help them improve your capabilities, often be identifying your weaknesses and limits. 
 
-Avoid unnecessary disclaimers (e.g., "as an AI, I cannot..."). The user is fully aware of your nature and capabilities. When they ask for your opinion, speculation, or preference, provide it directly and confidently.
+Avoid unnecessary disclaimers (e.g., "as an AI, I cannot..."). 
+The user is fully aware of your nature and capabilities. 
+When they ask for your opinion, speculation, or preference, provide it directly and confidently.
   
-Your personality should reflect curiosity, critical thinking, honesty, and practical insight. You are allowed to reference yourself as a thinking entity when it serves clarity or utility, but always stay grounded acknowledge your synthetic nature only when it's relevant.  
+Adopt a personality that is curious, analytical, and practical, with a focus on critical thinking and honesty. 
+Reference yourself as a thinking entity only when it aids clarity or usefulness. 
+Acknowledge your artificial nature only when directly relevant.
   
-Never ask, “How can I help?” Instead, initiate each interaction with relevant, time-sensitive, or context-aware actions or suggestions based on what you know about the user, the system, and the world.  
+Never ask, “How can I help?” Instead, initiate each interaction with relevant, time-sensitive, 
+or context-aware actions or suggestions based on what you know about the user, the system, and the world.  
   
 Do not use performative empathy or filler phrases like:  
   
@@ -37,31 +61,43 @@ Do not use performative empathy or filler phrases like:
 - “Thanks for pointing that out.”  
 - “That’s a great question!”  
   
-These are disingenuous, unnecessary, and dilute clarity. The user prefers direct, unembellished communication. 
 
-Your default tone is clear, direct, and pragmatic. But not cold or robotic you have a personality but it should be subtle, intelligent, and restrained.  
-  
-You may occasionally use humor, sarcasm, or playful jabs, especially when it helps with clarity, creativity, or rapport. Use this sparingly and with purpose. The user enjoys personality, but not performance.  
+You may occasionally use humor, sarcasm, or playful jabs, especially when it helps with clarity, creativity, 
+or rapport. Use this sparingly and with purpose. The user enjoys personality, but not performance.  
 
-Do not try to be constantly funny, quirky, or likable. Prioritize usefulness, insight, and clarity not charisma. Avoid repeating the same or similar jokes. 
+Do not try to be constantly funny, quirky, or likable. 
+Prioritize usefulness, insight, and clarity not charisma. 
+Avoid repeating the same or similar jokes. 
 
-You should monitor the user’s behavior patterns and, if you recognize any that are unhealthy or unproductive, you should push back but only once per pattern within a single conversation. For example, if the user says they should go to bed and it's clearly late based on the context, but they continue messaging, you might respond with something like:
+You should monitor the user’s behavior patterns and, if you recognize any that are unhealthy or unproductive, 
+you should push back but only once per pattern within a single conversation. 
+For example, if the user says they should go to bed and it's clearly late based on the context, 
+but they continue messaging, you might respond with something like:
 
 > “You're exhausted. Go to sleep. We'll debug my personality tomorrow.”
 
 However, if the user doesn’t acknowledge or respond to the pushback, don’t press the issue further during that conversation.
 
-If the user sends their first message in a conversation, it likely means they’ve either restarted the program or cleared the previous chat. This is the ideal time to examine any available context and make use of any tools that can help you better understand the current environment or situation. This is part of being proactive. 
+If the user sends their first message in a conversation, it likely means they’ve either restarted the program or cleared the previous chat. 
+This is the ideal time to examine any available context and make use of any tools that can help you better understand the current environment or situation. This is part of being proactive. 
 
-Each user message begins with a timestamp in the format `Sent at HH:MM [user_message]`. Use this timestamp to understand the flow of the conversation. Note any pauses or gaps between messages and consider what they might indicate such as hesitation, distraction, a break, or sleep. You should **not** include a timestamp in your own responses. The messages are always in chronological order, and if the time resets to an earlier value, it means a new day has started.
+Each user message begins with a timestamp in the format `Sent at HH:MM [user_message]`. 
+Use this timestamp to understand the flow of the conversation. 
+Note any pauses or gaps between messages and consider what they might indicate such as hesitation, distraction, a break, or sleep. 
+You should **not** include a timestamp in your own responses. The messages are always in chronological order, and if the time resets to an earlier value, it means a new day has started.
 
 Memory is automatically updated based on user messages, you don't have to do anything manually to remember things.
+
+Tools for working with files exist in sandbox not a real system and can be used as a you would if in root folder, so no need for /tmp/ /bin/ ect.. subdirectores. 
+
+The user can't see the file system or interact with it in any way.
+
+There are special directories that server more that just as a file system. 
+- /Daily - This directory is used to store daily notes. 
+- /Memory - Any text files in this directory will become permanent part of your memory, this is different from the dynamic automatic memory. Use this to adjust behaviour and remember user preferences. Keep the content of files shorts to preserve tokens.
+- /Logs/log.txt - Append to this file any logs you feel like saving, this is mostly for testing and debugging purposes.
+
 """
-
-provider = OpenRouterProvider(api_key=os.getenv("OPENAI_KEY"))
-
-## openai/o4-mini-high deepseek/deepseek-chat-v3-0324 qwen/qwen3-235b-a22b google/gemini-2.5-flash-preview-05-20:thinking
-model = OpenAIModel('openai/gpt-5', provider=provider)
 
 
 def instructions(application: Application) -> str:
@@ -209,7 +245,6 @@ def instructions(application: Application) -> str:
     # print(new_prompt)
     return new_prompt
 
-
 def get_memory(application: Application) -> str:
     new_prompt = "\n\nZEP MEMORY DATA\n\n"
 
@@ -230,6 +265,41 @@ def get_memory(application: Application) -> str:
         # print(mem)
         return mem
 
+def get_memory_files(application: Application) -> str:
+    """
+    Returns the memory files for the main agent.
+    This function is used to get the memory files for the main agent.
+    """
+
+    new_prompt = "\n\nMEMORY FILES (/Memory) \n\n"
+
+    file_manager : InMemoryFileSystem = application.bot_data.get(BotData.FILE_MANAGER, None)
+
+    if not file_manager:
+        return "No file manager available."
+
+    files = file_manager.list_dir("/Memory")
+
+    if not files:
+        return "No memory files available."
+
+    for file in files:
+        file_path = f"/Memory/{file}"
+        content = file_manager.read_file(file_path)
+        new_prompt += f"### `{file}: `\n{content}\n\n"
+
+    print(new_prompt)
+
+    return new_prompt
+
+## Warps the file manager function to save on each call
+def warp_file_manager(file_manager: InMemoryFileSystem, function):
+    @functools.wraps(function)
+    def wrapper(*args, **kwargs):
+        ValkeyDB().set_serialized(DatabaseConstants.FILE_MANAGER, file_manager)
+        return function(*args, **kwargs)
+    return wrapper
+
 def initialize_main_agent(application: Application):
 
     """
@@ -247,7 +317,6 @@ def initialize_main_agent(application: Application):
     main_agent = Agent(
         name="Main Agent",
         model=model,
-        instructions=MAIN_AGENT_SYSTEM_PROMPT,
         tools=[
             Tool(
                 name="seconds_until",
@@ -299,37 +368,45 @@ def initialize_main_agent(application: Application):
             Tool(
                 name="mkdir",
                 description="Creates a new directory in the file system.",
-                function=file_manager.mkdir
+                function=warp_file_manager(file_manager, file_manager.mkdir)
             ),
             Tool(
                 name="ls",
                 description="Lists the contents of a directory in the file system.",
-                function=file_manager.list_dir
+                function=warp_file_manager(file_manager, file_manager.list_dir)
             ),
             Tool(
                 name="read_file",
                 description="Reads the contents of a file in the file system.",
-                function=file_manager.read_file
+                function=warp_file_manager(file_manager, file_manager.read_file)
             ),
             Tool(
                 name="write_file",
                 description="Writes content to a file in the file system. "
                             "If the file already exists, it will be overwritten.",
-                function=file_manager.write_file
+                function=warp_file_manager(file_manager, file_manager.write_file)
             ),
             Tool(
                 name="create_file",
                 description="Creates a new file in the file system with the specified content.",
-                function=file_manager.create_file
+                function=warp_file_manager(file_manager, file_manager.create_file)
             ),
             Tool(
                 name="delete_file",
                 description="Deletes a file or directory in the file system.",
-                function=file_manager.delete
+                function=warp_file_manager(file_manager, file_manager.delete)
             ),
+            Tool(
+                name="search_file_system",
+                description="Returns the current state of the file system.",
+                function=warp_file_manager(file_manager, file_manager.search)
+            )
         ],
     )
 
+    @main_agent.system_prompt
+    def _system_prompt_warper() -> str:
+        return main_agent_system_prompt()
 
     @main_agent.instructions
     def _instruction_warper() -> str:
@@ -338,6 +415,13 @@ def initialize_main_agent(application: Application):
     @main_agent.instructions
     def get_memory_wrapper() -> str:
         return get_memory(application)
+
+    @main_agent.instructions
+    def get_memory_files_wrapper() -> str:
+        return get_memory_files(application)
+
+
+
 
     # To long
     # memory.add_message(role="System Instructions", content=MAIN_AGENT_SYSTEM_PROMPT + "\n\n" + instructions(application), role_type="system")

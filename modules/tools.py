@@ -64,6 +64,7 @@ def init_file_manager():
     file_manager = InMemoryFileSystem()
     file_manager.mkdir("/Memory")
     file_manager.mkdir("/Logs")
+    file_manager.create_file("/Logs/logs.txt", "Log file created")
     file_manager.mkdir("/Daily")
 
     return file_manager

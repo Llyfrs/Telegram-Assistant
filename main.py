@@ -73,7 +73,6 @@ if __name__ == '__main__':
     application.bot_data[BotData.FILE_MANAGER] = ValkeyDB().get_serialized(DatabaseConstants.FILE_MANAGER, init_file_manager())
 
 
-
     chat_id = ValkeyDB().get_serialized(DatabaseConstants.MAIN_CHAT_ID, None)
 
     API_KEY = ValkeyDB().get_serialized(DatabaseConstants.TORN_API_KEY, "")
