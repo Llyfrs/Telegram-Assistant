@@ -1,9 +1,12 @@
 import functools
 import logging
 import os
+from datetime import datetime, timedelta, date
 
+from openai.types.responses import WebSearchToolParam
 from pydantic_ai import Agent, Tool
-from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.models.openai import OpenAIModel, OpenAIResponsesModelSettings, OpenAIResponsesModel
+from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.providers.openrouter import OpenRouterProvider
 from telegram.ext import Application
 
@@ -18,16 +21,29 @@ from modules.location_manager import LocationManager
 from modules.memory import Memory
 from modules.reminder import seconds_until, calculate_seconds, Reminders
 
-from datetime import datetime, timedelta, date
-
 logger = logging.getLogger(__name__)
 
-provider = OpenRouterProvider(api_key=os.getenv("OPENAI_KEY"))
+
+use_openAI = True
 
 
-## openai/o4-mini-high deepseek/deepseek-chat-v3-0324 qwen/qwen3-235b-a22b google/gemini-2.5-flash-preview-05-20:thinking
-model = OpenAIModel('openai/gpt-5', provider=provider)
+model_settings = None
 
+if use_openAI:
+    provider = OpenAIProvider(api_key=os.getenv("OPENAI_KEY"))
+
+    model_settings = OpenAIResponsesModelSettings(
+        openai_builtin_tools=[WebSearchToolParam(type='web_search_preview'), ],
+
+    )
+
+    ## Not supported for now
+    # {"type":"image_generation"}
+
+    model = OpenAIResponsesModel('gpt-5', provider=provider)
+else:
+    provider = OpenRouterProvider(api_key=os.getenv("OPENROUTER_API_KEY"))
+    model = OpenAIModel('openai/gpt-5', provider=provider)
 
 
 def main_agent_system_prompt() -> str:
@@ -98,7 +114,6 @@ There are special directories that server more that just as a file system.
 - /Logs/log.txt - Append to this file any logs you feel like saving, this is mostly for testing and debugging purposes.
 
 """
-
 
 def instructions(application: Application) -> str:
     """
@@ -317,11 +332,12 @@ def initialize_main_agent(application: Application):
     main_agent = Agent(
         name="Main Agent",
         model=model,
+        model_settings=model_settings,
         tools=[
             Tool(
                 name="seconds_until",
                 description="Returns number seconds remaining to provided date. Date format has to be %Y-%m-%d %H:%M:%S. ",
-                function=seconds_until
+                function=seconds_until,
             ),
             Tool(
                 name="convert_to_seconds",
@@ -403,6 +419,7 @@ def initialize_main_agent(application: Application):
             )
         ],
     )
+
 
     @main_agent.system_prompt
     def _system_prompt_warper() -> str:

@@ -85,8 +85,6 @@ class Assistant(Command):
 
         print(update)
 
-
-
         ## This whole think is broken as if you send more that one image they all get registered as a separate message
         photos = []
         if len(update.message.photo):
@@ -104,12 +102,12 @@ class Assistant(Command):
         # HH:MM format
         time_text = update.message.date.strftime("%H:%M")
 
-        message = [ f"Send at {time_text}: " + update.message.text]
+        message = [f"Send at {time_text}: " + (update.message.text or " ")]
 
 
         if len(photos) != 0:
             logging.info(f"User sent {len(photos)} photos")
-            message = [ update.message.caption, ImageUrl(url=photos[0]) ]
+            message = [ update.message.caption, ImageUrl(url=photos[0])]
 
         elif audio_url is not None:
             logging.info("User sent a voice message")
