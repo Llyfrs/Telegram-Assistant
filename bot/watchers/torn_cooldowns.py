@@ -5,7 +5,7 @@ from enums.bot_data import BotData
 from modules.torn import Torn
 
 # TODO: Loogging
-@run_repeated(interval=30)
+@run_repeated(interval=180)
 async def torn_cooldowns(context: ContextTypes.DEFAULT_TYPE):
     torn : Torn = context.bot_data.get(BotData.TORN)
 

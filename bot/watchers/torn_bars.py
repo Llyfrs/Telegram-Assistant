@@ -4,7 +4,7 @@ from bot.classes.watcher import run_repeated
 from enums.bot_data import BotData
 from modules.torn import Torn
 
-@run_repeated(interval=30)
+@run_repeated(interval=90)
 async def torn_racing(context: ContextTypes.DEFAULT_TYPE):
 
     torn : Torn = context.bot_data.get(BotData.TORN)
