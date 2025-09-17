@@ -261,13 +261,13 @@ def instructions(application: Application) -> str:
     return new_prompt
 
 def get_memory(application: Application) -> str:
-    new_prompt = "\n\nZEP MEMORY DATA\n\n"
+    new_prompt = "\n\nMEM0 MEMORY DATA\n\n"
 
     memory : Memory = application.bot_data.get(BotData.MEMORY, None)
 
     mem = memory.get_memory()["context"]
 
-    if mem is None:
+    if mem is None or mem == "":
         return "No memory data available."
     else:
 
