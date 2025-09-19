@@ -17,6 +17,7 @@ class Memory:
 
         self.user_id = user_id
         self.client = Zep(api_key=self.api_key)
+        s
 
         # Create or ensure user exists
 
