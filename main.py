@@ -90,7 +90,7 @@ if __name__ == '__main__':
 
     application.bot_data[BotData.MEMORY] = Memory(
         user_id="user",
-        api_key=os.environ.get('ZEP_API_KEY'),
+        api_key=os.environ.get('OPENAI_API_KEY'),  # Use OpenAI API key for mem0's LLM functionality
         first_name="User"
     )
 
