@@ -20,6 +20,7 @@ class Memory:
 
         # Create or ensure user exists
 
+
         try:
             self.client.user.add(
                 user_id=user_id,
