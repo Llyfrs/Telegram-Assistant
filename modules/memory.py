@@ -55,10 +55,7 @@ class Memory:
         self.client.thread.add_messages(thread_id=self.session_id, messages=[message], ignore_roles=["system", "tool", "assistant"])
 
     def get_memory(self):
-
         memory = self.client.thread.get_user_context(thread_id=self.session_id , mode="summary")
-
-        print(memory)
 
         return {
             "context": memory.context,
