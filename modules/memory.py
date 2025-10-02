@@ -35,8 +35,8 @@ class Memory:
 
     def _create_session(self):
         session_id = uuid.uuid4().hex
-        self.client.memory.add_session(
-            session_id=session_id,
+        self.client.thread.create(
+            thread_id=session_id,
             user_id=self.user_id,
         )
         return session_id
@@ -47,27 +47,20 @@ class Memory:
 
     def add_message(self, role, content, role_type="user"):
         message = Message(
-            role=role,
+            role=role_type,
             content=content,
-            role_type=role_type
         )
 
-        self.client.memory.add(session_id=self.session_id, messages=[message], ignore_roles=["system", "tool", "assistant"])
+        self.client.thread.add_messages(thread_id=self.session_id, messages=[message], ignore_roles=["system", "tool", "assistant"])
 
     def get_memory(self):
 
-        memory = self.client.memory.get(session_id=self.session_id, lastn=50)
+        memory = self.client.thread.get_user_context(thread_id=self.session_id , mode="summary")
+
+        print(memory)
 
         return {
             "context": memory.context,
-            "messages": [
-                {
-                    "role": msg.role,
-                    "content": msg.content,
-                    "role_type": msg.role_type
-                }
-                for msg in memory.messages
-            ]
         }
 
     def clear_memory(self):

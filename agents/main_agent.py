@@ -303,8 +303,6 @@ def get_memory_files(application: Application) -> str:
         content = file_manager.read_file(file_path)
         new_prompt += f"### `{file}: `\n{content}\n\n"
 
-    print(new_prompt)
-
     return new_prompt
 
 ## Warps the file manager function to save on each call

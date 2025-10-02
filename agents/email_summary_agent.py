@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
+from pydantic_ai.providers.openrouter import OpenRouterProvider
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ You may use **Markdown** to format your response.
 """
 
 
-provider = OpenAIProvider(api_key=os.getenv("OPENAI_KEY"), base_url="https://openrouter.ai/api/v1")
+provider = OpenRouterProvider(api_key=os.getenv("OPENROUTER_API_KEY"))
 model = OpenAIModel('openai/gpt-4o-mini', provider=provider)
 
 class Event(BaseModel):
