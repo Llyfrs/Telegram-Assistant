@@ -260,6 +260,9 @@ class Torn:
                     if employees[id].get("wage") > 0:
                         if id not in order:
                             order.append(id)
+                    else:
+                        if id in order:
+                            order.remove(id)
 
                 for id in order:
                     if id not in emp:
