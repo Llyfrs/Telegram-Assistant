@@ -146,6 +146,11 @@ class Torn:
         url = f"https://api.torn.com/user/{id}?selections=profile&key={self.api_key}"
         return await self.get(url)
 
+
+    async def get_targeteds(self, offset=0):
+        url = f"https://api.torn.com/v2/user/list?cat=Targets&striptags=true&limit=50&offset={offset}&key={self.api_key}"
+        return await self.get(url)
+
     ## Example of returned value:
     ## {
     # 'Result': 1, 'TargetId': 2531272, 'TBS_Raw': 2984136331, 'TBS': 2984136331, 'TBS_Balanced': 2812817296,
