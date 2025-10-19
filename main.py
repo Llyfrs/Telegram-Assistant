@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 
-import asyncio
 import glob
 import importlib
 import json
@@ -80,10 +79,6 @@ if __name__ == '__main__':
     t = Torn(application.bot, API_KEY , chat_id)
 
     application.bot_data[BotData.TORN] = t
-
-    loop = asyncio.get_event_loop()
-
-    asyncio.run_coroutine_threadsafe(t.run(), loop)
 
     application.bot_data[BotData.TIMETABLE] = TimeTable(pytz.timezone('CET'))
 

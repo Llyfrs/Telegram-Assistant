@@ -2,32 +2,35 @@
 
 This command is used to set the Torn API key.
 Usage looks like this: /set_torn_api_key <api_key>
-This is unfortunately is not following the intended way for slash commands. As they are not expected to have parameters.
-Should be rewritten in to conversation.
+This is unfortunately not following the intended way for slash commands. As they are not expected to have parameters.
+Should be rewritten into a conversation.
 
 """
 
-import asyncio
-
 from bot.classes.command import command
+from enums.bot_data import BotData
 from modules.database import ValkeyDB
 from modules.torn import Torn
 
 
 @command
 async def set_torn_api_key(update, context):
-    """ Sets Torn API key and resets already running torn instance so only one is running """
+    """Sets the Torn API key and refreshes the Torn client instance."""
 
     db = ValkeyDB()
-    db.set_serialized("torn_api_key", update.message.text.split(" ")[1])
-    db.set_serialized("chat_id", update.message.chat.id)
+    parts = update.message.text.split(" ")
+    if len(parts) < 2:
+        await update.message.reply_text("Usage: /set_torn_api_key <api_key>")
+        return
 
-    torn = context.bot_data["torn"]
-    torn.cancel()
+    api_key = parts[1]
+    chat_id = update.message.chat.id
 
-    loop = asyncio.get_event_loop()
+    db.set_serialized("torn_api_key", api_key)
+    db.set_serialized("chat_id", chat_id)
 
-    torn = Torn(torn.bot, ValkeyDB().get_serialized("torn_api_key", ""), ValkeyDB().get_serialized("chat_id"))
-    asyncio.run_coroutine_threadsafe(torn.run(), loop)
+    torn = Torn(context.bot, api_key, chat_id)
+    context.bot_data[BotData.TORN] = torn
+    context.application.bot_data[BotData.TORN] = torn
 
-    await update.message.reply_text(f"Torn API key set")
+    await update.message.reply_text("Torn API key set")
