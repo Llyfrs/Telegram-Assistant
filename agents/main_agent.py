@@ -2,6 +2,7 @@ import functools
 import logging
 import os
 from datetime import datetime, timedelta, date
+from typing import Optional
 
 from openai.types.responses import WebSearchToolParam
 from pydantic_ai import Agent, Tool
@@ -20,6 +21,7 @@ from modules.file_system import InMemoryFileSystem
 from modules.location_manager import LocationManager
 from modules.memory import Memory
 from modules.reminder import seconds_until, calculate_seconds, Reminders
+from modules.shell import EphemeralShell
 
 logger = logging.getLogger(__name__)
 
@@ -292,6 +294,15 @@ def initialize_main_agent(application: Application):
     location : LocationManager = application.bot_data.get(BotData.LOCATION, None)
     memory : Memory = application.bot_data.get(BotData.MEMORY, None)
     file_manager : InMemoryFileSystem = application.bot_data.get(BotData.FILE_MANAGER, None)
+    shell_environment: Optional[EphemeralShell] = application.bot_data.get(BotData.SHELL, None)
+
+    def require_shell(method_name: str):
+        def wrapper(*args, **kwargs):
+            if not shell_environment:
+                return "Shell environment is not available."
+            method = getattr(shell_environment, method_name)
+            return method(*args, **kwargs)
+        return wrapper
 
     main_agent = Agent(
         name="Main Agent",
@@ -380,7 +391,24 @@ def initialize_main_agent(application: Application):
                 name="search_file_system",
                 description="Returns the current state of the file system.",
                 function=warp_file_manager(file_manager, file_manager.search)
-            )
+            ),
+            Tool(
+                name="run_shell_command",
+                description="Executes a command inside the isolated shell workspace. "
+                            "Provide the full command as a single string (without redirection or chaining). "
+                            "All changes are temporary and reset frequently.",
+                function=require_shell("run"),
+            ),
+            Tool(
+                name="list_shell_workspace",
+                description="Lists files and directories currently available in the isolated shell workspace.",
+                function=require_shell("list_workspace"),
+            ),
+            Tool(
+                name="reset_shell_workspace",
+                description="Resets the isolated shell workspace, discarding all temporary files.",
+                function=require_shell("reset"),
+            ),
         ],
     )
 
