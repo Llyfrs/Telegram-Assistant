@@ -2,32 +2,25 @@ import asyncio
 import logging
 import re
 import time
+from typing import Any, Dict, Optional
 
-import pytz
-import schedule
 import requests
 import telegram
 import inspect
 
-
 import telegramify_markdown
 
 from modules.database import ValkeyDB
-from modules.reminder import convert_seconds_to_hms
 
 
 def reqwest(url):
     return requests.get(url).json()
 
 
-def remove_between_angle_brackets(text):
-    cleaned_text = re.sub(r'<.*?>', '', text)  # Remove text between < and >
-    return re.sub(r'\s+', ' ', cleaned_text).strip()  # Replace multiple spaces with a single space and strip extra spaces
+def remove_between_angle_brackets(text: str) -> str:
+    cleaned_text = re.sub(r'<.*?>', '', text)
+    return re.sub(r'\s+', ' ', cleaned_text).strip()
 
-
-def generate_progress_bar(value, max_value, length=10):
-    progress = int(value / max_value * length)
-    return f"\[{'#' * progress}{'-' * (length - progress)}\]"
 
 def logg_error(function):
     async def wrapper(*args, **kwargs):
@@ -39,37 +32,32 @@ def logg_error(function):
 
     return wrapper
 
+
 class Torn:
 
-    def __init__(self, bot , api_key, chat_id):
+    def __init__(self, bot: telegram.Bot, api_key: str, chat_id: Optional[int]):
         self.api_key = api_key
-        self.bot : telegram.Bot = bot
+        self.bot: telegram.Bot = bot
         self.chat_id = chat_id
-        self.running = True
 
-        self.bounties = None
-        self.user = None
-        self.company = None
-
+        self.bounties: Optional[Dict[str, Any]] = None
+        self.user: Optional[Dict[str, Any]] = None
+        self.company: Optional[Dict[str, Any]] = None
 
         self.discovered_bounties = []
         self.oldest_event = 0
-        self.last_messages= {}
+        self.last_messages = {}
         self.is_stacking = False
 
-        self.cache = {}
+        self.cache: Dict[str, Dict[str, Any]] = {}
 
-
-    def set_stacking(self, value):
+    def set_stacking(self, value: bool):
         self.is_stacking = value
 
-    def get_stacking(self):
+    def get_stacking(self) -> bool:
         return self.is_stacking
 
-    async def cancel(self):
-        self.running = False
-
-    async def send_html(self, text):
+    async def send_html(self, text: str):
         try:
             return await self.bot.send_message(chat_id=self.chat_id, text=text, parse_mode="html")
         except Exception as e:
@@ -81,15 +69,17 @@ class Torn:
             await self.bot.delete_message(chat_id=self.chat_id, message_id=self.last_messages[caller].message_id)
             self.last_messages.pop(caller)
 
-    async def send(self, text, clean = True):
+    async def send(self, text: str, clean: bool = True):
         try:
             text = telegramify_markdown.markdownify(text)
             message = await self.bot.send_message(chat_id=self.chat_id, text=text, parse_mode="MarkdownV2")
 
-            ## Wild stuff this is, but it makes sure the bot cleans up after itself, at the same time it sends new message
             try:
                 if inspect.stack()[1].function in self.last_messages and clean:
-                    await self.bot.delete_message(chat_id=self.chat_id, message_id=self.last_messages[inspect.stack()[1].function].message_id)
+                    await self.bot.delete_message(
+                        chat_id=self.chat_id,
+                        message_id=self.last_messages[inspect.stack()[1].function].message_id
+                    )
             except Exception as e:
                 logging.error(f"Failed to clean last message: {e} in message: {text}")
 
@@ -99,7 +89,7 @@ class Torn:
         except Exception as e:
             logging.error(f"Failed to send message: {e} in message: {text}")
 
-    async def get(self, url):
+    async def get(self, url: str):
 
         if self.cache.get(url, None) is not None:
             if self.cache[url].get("expires", 0) > time.time():
@@ -109,8 +99,6 @@ class Torn:
 
         while response.get("error") is not None:
 
-
-            ## 5 is the error code for when API key runs out of requests, we can wait for it to reset, otherwise we just break and log the error
             if response.get("error").get("code") != 5:
 
                 await self.send("Torn API error: {0}".format(response.get("error").get("error")))
@@ -124,11 +112,10 @@ class Torn:
         if response.get("error") is None:
             self.cache[url] = {
                 "data": response,
-                "expires": time.time() + 30  # Cache for 5 minutes
+                "expires": time.time() + 30
             }
 
         return response
-
 
     async def get_user(self):
         url = f"https://api.torn.com/user/?selections=profile,cooldowns,newevents,bars,battlestats,icons&key={self.api_key}"
@@ -146,17 +133,10 @@ class Torn:
         url = f"https://api.torn.com/user/{id}?selections=profile&key={self.api_key}"
         return await self.get(url)
 
-
     async def get_targeteds(self, offset=0):
         url = f"https://api.torn.com/v2/user/list?cat=Targets&striptags=true&limit=50&offset={offset}&key={self.api_key}"
         return await self.get(url)
 
-    ## Example of returned value:
-    ## {
-    # 'Result': 1, 'TargetId': 2531272, 'TBS_Raw': 2984136331, 'TBS': 2984136331, 'TBS_Balanced': 2812817296,
-    # 'Score': 106072, 'Version': 50, 'Reason': '', 'SubscriptionEnd': '2024-10-14T09:29:31.2237362Z',
-    # 'PredictionDate': '2024-10-07T03:35:03.4366667'
-    # }
     async def get_bts(self, id):
 
         db = ValkeyDB()
@@ -164,7 +144,6 @@ class Torn:
 
         if cache is not None:
             return cache
-
 
         url = f'http://www.lol-manager.com/api/battlestats/{self.api_key}/{id}/9.0.5'
         headers = {
@@ -175,7 +154,7 @@ class Torn:
             result = requests.get(url, headers=headers).json()
 
             if result.get("TargetId") is not None:
-                db.set_serialized(f"bts:{id}", result, expire=86400*10)
+                db.set_serialized(f"bts:{id}", result, expire=86400 * 10)
                 return result
             else:
                 logging.error(f"Unexpected response from lol-manager {result}")
@@ -185,7 +164,7 @@ class Torn:
 
     async def update_user(self):
 
-        try :
+        try:
             self.user = await self.get_user()
         except Exception as e:
             logging.error(f"Failed to get user data: {e}")
@@ -198,265 +177,8 @@ class Torn:
         except Exception as e:
             logging.error(f"Failed to get company data: {e}")
 
-
     async def update_bounties(self):
         try:
             self.bounties = await self.get_bounties()
         except Exception as e:
             logging.error(f"Failed to get bounties data: {e}")
-
-
-    @logg_error
-    async def stock(self):
-
-        company_stock = self.company.get("company_stock")
-        storage_space = self.company.get("company_detailed").get("upgrades").get("storage_space")
-
-        total_sold = sum(float(v["sold_amount"]) for v in company_stock.values())
-        total_in_stock = sum(float(v["in_stock"]) + float(v["on_order"]) for v in company_stock.values())
-
-        aim_ratio = storage_space / total_sold
-        capacity = storage_space - total_in_stock
-        run_out = False
-
-        message = "*Stock Alert*:\n"
-
-        message += f"Capacity to fill: {capacity}\n"
-        message += f"Global ratio: {aim_ratio:.2f}\n"
-
-        for key, value in company_stock.items():
-            sold = float(value["sold_amount"])
-            in_stock = float(value["in_stock"]) + float(value["on_order"])
-
-            diff = aim_ratio - (in_stock / sold)
-
-            if diff <= 0.0:
-                print(f"{key}: 0 ({in_stock / sold:.2f})")
-            else:
-                buy = diff * sold
-                capacity -= buy
-
-                if run_out:
-                    buy = 0.0
-                elif capacity <= 0.0:
-                    run_out = True
-                    buy = capacity + buy
-
-                message += f"{key}: {buy:.0f} ({in_stock / sold:.2f})\n"
-
-        message += f"Capacity: {round(capacity,2)}"
-
-        await self.send(message)
-
-    async def trains(self):
-
-        company_employees = self.company.get("company_employees")
-
-        try:
-            if self.company.get("company_detailed").get("trains_available") == 0:
-                messages = "You have no trains available, you can't train anyone"
-                logging.info("No trains available")
-            else:
-                employees = self.company.get("company_employees")
-                order : list = ValkeyDB().get_serialized("last_employee_trained", [])
-
-                emp = [ id for id in employees]
-                for id in employees:
-                    if employees[id].get("wage") > 0:
-                        if id not in order:
-                            order.append(id)
-                    else:
-                        if id in order:
-                            order.remove(id)
-
-                for id in order:
-                    if id not in emp:
-                        order.remove(id)
-
-                order.append(order.pop(0))
-                ValkeyDB().set_serialized("last_employee_trained", order)
-
-                wage = employees[order[0]].get("wage")
-                trains = self.company.get("company_detailed").get("trains_available")
-                preference = ValkeyDB().get_serialized("company_employees", {}).get(order[0], None)
-
-                messages = (f"You have *{trains} trains* available and your next employee to train is *{employees[order[0]].get('name')}* "
-                            f"you can update their wage to `{wage - trains}` when you finish. [Quick link](https://www.torn.com/companies.php?step=your&type=1)")
-
-                messages += f"\n\nPrefers: *{preference}*" if preference is not None else ""
-
-                logging.info(f"Trains available: {trains}, next employee: {employees[order[0]].get('name')}")
-
-        except Exception as e:
-            logging.error(f"Failed to get train data: {e}")
-            return
-
-
-        await self.send(messages)
-
-
-    async def get_valid_bounties(self, min_money):
-        await self.update_bounties()
-
-
-        monitor = []
-        ids = []
-        skipped = [0,0]
-
-        my_bts = self.user.get("total")
-        bounties = self.bounties.get("bounties")
-
-
-        for bounty in bounties:
-            if bounty.get("reward") >= min_money:
-
-                ## Prevents multiple bounties on single person, keeps it clean
-                if bounty.get("target_id") in ids:
-                    continue
-
-                ids.append(bounty.get("target_id"))
-
-                ## Since I'm caching the bts, it'
-                #
-                # s better to call it first to save on API calls
-                bts = await self.get_bts(bounty.get("target_id"))
-
-                if bts.get("TBS") > my_bts * 1.1:
-                    continue
-
-                user_info = await self.get_basic_user(bounty.get("target_id"))
-                if user_info.get("basicicons").get("icon71") is not None:
-                    continue
-
-                if user_info.get("basicicons").get("icon72") is not None:
-                    continue
-
-                user_info["reward"] = bounty.get("reward")
-                user_info["TBS"] = bts.get("TBS")
-
-                user_info["valid_until"] = bounty.get("valid_until")
-
-
-                monitor.append(user_info)
-
-        return monitor
-
-    @logg_error
-    async def bounty_monitor(self):
-
-        my_bts = self.user.get("total")
-        chat_message : telegram.Message = await self.send("Starting Bounty monitor")
-
-        while True:
-
-            monitor = await self.get_valid_bounties(500000)
-
-            monitor.sort(key=lambda x: x.get("states").get("hospital_timestamp"))
-
-            energy = self.user.get("energy").get("current")
-            message = f"*Bounty Monitor ({energy}e)*\n\n"
-
-            for user in monitor:
-
-                reward = "${:,.0f}".format(user.get("reward"))
-                bts = round(user.get("TBS") / my_bts * 100)
-
-                message += f"[{user.get('name')}](https://www.torn.com/loader.php?sid=attack&user2ID={user.get('player_id')}) - {reward} "
-                message += user.get("status").get("description") + f" ({bts}%)\n"
-
-
-            message += "\n\nupdated: " + time.strftime('%H:%M:%S', time.localtime())
-
-            message = telegramify_markdown.markdownify(message)
-            await chat_message.edit_text(message, parse_mode="MarkdownV2")
-            """
-            for i in range(0, 20):
-                copy = message
-                copy += generate_progress_bar(i, 20, length=20)
-                await chat_message.edit_text(copy, parse_mode="MarkdownV2")
-                await asyncio.sleep(3)
-            """
-            await asyncio.sleep(60)
-
-
-    async def bounty_watcher(self):
-        min_money = 1000000
-        monitor = await self.get_valid_bounties(min_money)
-        update_discovered = []
-        count = 0
-        highest = 0
-
-        new_bounties = []
-
-        for bounty in monitor:
-            record = (bounty.get("player_id"), bounty.get("valid_until"))
-
-            if record not in self.discovered_bounties:
-                new_bounties.append(bounty)
-                count += 1
-
-            update_discovered.append(record)
-
-
-        self.discovered_bounties = update_discovered
-
-        for bounty in new_bounties:
-            logging.info(f"New bounty found: {bounty.get('name')} with ${bounty.get('reward')}, creating watcher")
-            asyncio.run_coroutine_threadsafe(self.watch_player_bounty(bounty), asyncio.get_event_loop())
-
-
-    async def watch_player_bounty(self, player_info):
-        ## How long before the player leaves hospital should the bot send the message
-        limit = 60
-
-        now = time.time()
-        hospital = player_info.get("states").get("hospital_timestamp")
-
-        await asyncio.sleep(hospital - now - limit)
-
-        user_info = await self.get_basic_user(player_info.get("player_id"))
-
-        ## User no loger has a bounty on them
-        if user_info.get("basicicons").get("icon13") is None:
-            return
-
-        ## User is in hospital but the hospitalization time increased (probably got attacked or selfhosped)
-        ## Spawns new watcher
-        if user_info.get("states").get("hospital_timestamp") != hospital:
-            player_info["states"] = user_info.get("states")
-            asyncio.run_coroutine_threadsafe(self.watch_player_bounty(player_info), asyncio.get_event_loop())
-            return
-
-        reward = "${:,.0f}".format(player_info.get("reward"))
-        message = await self.send(
-            f"{user_info.get('name')} is about to leave hospital with a bounty of {reward}. "
-            f"[Attack](https://www.torn.com/loader.php?sid=attack&user2ID={player_info.get('player_id')})",
-            clean=False)
-
-        ## Delete message when user leaves hospital (not relevant anymore)
-        await asyncio.sleep(limit)
-        await message.delete()
-
-    ##warper
-
-    @logg_error
-    async def run (self):
-        logging.info("Torn is up and running")
-        cet = pytz.timezone('CET')
-
-        logging.info( await self.get_bts(2531272))
-
-        loop = asyncio.get_event_loop()
-
-        schedule.every().day.at("06:50", cet).do(lambda: asyncio.run_coroutine_threadsafe(self.update_company(), loop))
-        schedule.every(30).minutes.do(lambda: asyncio.run_coroutine_threadsafe(self.bounty_watcher(), loop))
-
-        schedule.run_all()
-
-        schedule.every().day.at("07:00", cet).do(lambda : asyncio.run_coroutine_threadsafe(self.stock(), loop))
-        schedule.every().day.at("07:00", cet).do(lambda: asyncio.run_coroutine_threadsafe(self.trains(), loop))
-
-        while self.running:
-            schedule.run_pending()
-            await asyncio.sleep(1)
-
