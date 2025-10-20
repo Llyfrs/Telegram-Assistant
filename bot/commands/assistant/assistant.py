@@ -4,7 +4,7 @@ import logging
 import pytz
 
 
-from pydantic_ai import Agent, capture_run_messages, ImageUrl, AudioUrl
+from pydantic_ai import ImageUrl, AudioUrl
 from pydantic_ai.messages import ToolReturnPart, ToolCallPart
 from telegram import Update
 from telegram.constants import ChatAction
@@ -13,6 +13,7 @@ from telegram.ext import ContextTypes, filters, MessageHandler
 from bot.classes.command import Command
 from enums.bot_data import BotData
 from enums.database import DatabaseConstants
+from modules.agent_runtime import AgentRuntime, QueuedMessage
 from modules.bot import Bot
 from modules.database import ValkeyDB
 from modules.memory import Memory
@@ -72,13 +73,15 @@ class Assistant(Command):
 
         print("Handling message in Assistant command")
 
-        main_agent : Agent = context.bot_data[BotData.MAIN_AGENT]
-        reminder : Reminders = context.bot_data[BotData.REMINDER]
+        reminder: Reminders = context.bot_data[BotData.REMINDER]
+        runtime: AgentRuntime = context.bot_data[BotData.AGENT_RUNTIME]
 
-        memory : Memory = context.bot_data.get(BotData.MEMORY, None)
+        memory: Memory = context.bot_data.get(BotData.MEMORY, None)
 
         reminder.chat_id = update.effective_chat.id
         bot = Bot(context.bot, update.effective_chat.id)
+
+        runtime.set_default_chat(update.effective_chat.id)
 
         ## Change status to typing
         await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
@@ -102,29 +105,48 @@ class Assistant(Command):
         # HH:MM format
         time_text = update.message.date.strftime("%H:%M")
 
-        message = [f"Send at {time_text}: " + (update.message.text or " ")]
+        direct_message_note = (
+            "This is direct request on telegram and your response is expected "
+            "with at least one send message."
+        )
 
+        base_text = update.message.text or update.message.caption or ""
+        base_text = base_text.strip()
+
+        agent_message = []
+        header_text = f"Sent at {time_text}"
 
         if len(photos) != 0:
             logging.info(f"User sent {len(photos)} photos")
-            message = [ update.message.caption, ImageUrl(url=photos[0])]
+            description = base_text if base_text else "User sent a photo."
+            agent_message.append(f"{header_text}: {description}")
+            agent_message.append(ImageUrl(url=photos[0]))
 
         elif audio_url is not None:
             logging.info("User sent a voice message")
-            message = [ "Listen to the audio", AudioUrl(url=audio_url) ]
+            description = base_text if base_text else "User sent a voice message."
+            agent_message.append(f"{header_text}: {description}")
+            agent_message.append(AudioUrl(url=audio_url))
 
-        ## Has to be before we call agent as that will make sure at least one message is added to the memory
-        memory.add_message(role="User", content=update.message.text or "Text Not Found", role_type="user")
+        else:
+            description = base_text if base_text else "(no text provided)"
+            agent_message.append(f"{header_text}: {description}")
 
-        messages = context.bot_data.get(BotData.MESSAGE_HISTORY, [])
+        agent_message.append(direct_message_note)
 
-        response = await main_agent.run(message, message_history=messages)
+        if memory:
+            memory.add_message(
+                role="User",
+                content=base_text or "[no textual content provided]",
+                role_type="user",
+            )
 
-        chunks = split_text(response.output)
-        for chunk in chunks:
-            memory.add_message(role="Telegram Assistant", content=chunk, role_type="assistant")
+        response = await runtime.run(agent_message)
 
-        context.bot_data[BotData.MESSAGE_HISTORY] = response.all_messages()
+        if memory and response.output:
+            chunks = split_text(response.output)
+            for chunk in chunks:
+                memory.add_message(role="Telegram Assistant", content=chunk, role_type="assistant")
 
         tool_calls = {}
         for msg in response.new_messages():
@@ -158,4 +180,15 @@ class Assistant(Command):
             for tool_call_id, tool_call in tool_calls.items():
                 await bot.send(f"`{tool_call['name']}({tool_call['args']}) => {tool_call['output']}`")
 
-        await bot.send(response.output)
+        queued_messages: list[QueuedMessage] = runtime.drain_outgoing()
+
+        for queued in queued_messages:
+            target_bot = bot if queued.chat_id == update.effective_chat.id else Bot(context.bot, queued.chat_id)
+            await target_bot.send(
+                queued.text,
+                clean=queued.clean,
+                markdown=queued.markdown,
+            )
+            if memory:
+                memory.add_message(role="Telegram Assistant", content=queued.text, role_type="assistant")
+

@@ -15,6 +15,7 @@ from bot.commands.assistant.assistant import get_current_time
 from bot.watchers.email_summary import blocking_add_event
 from enums.bot_data import BotData
 from enums.database import DatabaseConstants
+from modules.agent_runtime import AgentRuntime
 from modules.calendar import Calendar
 from modules.database import ValkeyDB
 from modules.file_system import InMemoryFileSystem
@@ -288,8 +289,13 @@ def initialize_main_agent(application: Application):
     This function should be called at the start of the application.
     """
 
+    default_chat_id = ValkeyDB().get_serialized(DatabaseConstants.MAIN_CHAT_ID, None)
+
     reminder =  Reminders(application.bot)
     application.bot_data[BotData.REMINDER] = reminder
+
+    runtime = AgentRuntime(default_chat_id=default_chat_id)
+    application.bot_data[BotData.AGENT_RUNTIME] = runtime
 
     location : LocationManager = application.bot_data.get(BotData.LOCATION, None)
     memory : Memory = application.bot_data.get(BotData.MEMORY, None)
@@ -409,6 +415,14 @@ def initialize_main_agent(application: Application):
                 function=warp_file_manager(file_manager, file_manager.search)
             ),
             Tool(
+                name="send_user_message",
+                description=(
+                    "Queue a message to be delivered to the user via Telegram. "
+                    "Use this for any direct communication or proactive notifications."
+                ),
+                function=runtime.queue_outgoing_message,
+            ),
+            Tool(
                 name="run_shell_command",
                 description="Executes a command inside the isolated shell workspace. "
                             "Provide the full command as a single string (without redirection or chaining). "
@@ -450,6 +464,8 @@ def initialize_main_agent(application: Application):
 
     # To long
     # memory.add_message(role="System Instructions", content=MAIN_AGENT_SYSTEM_PROMPT + "\n\n" + instructions(application), role_type="system")
+
+    runtime.attach_agent(main_agent)
 
     application.bot_data[BotData.MAIN_AGENT] = main_agent
 
