@@ -2,6 +2,7 @@ import functools
 import logging
 import os
 from datetime import datetime, timedelta, date
+from typing import Dict, Optional, Union
 
 from openai.types.responses import WebSearchToolParam
 from pydantic_ai import Agent, Tool
@@ -20,6 +21,7 @@ from modules.file_system import InMemoryFileSystem
 from modules.location_manager import LocationManager
 from modules.memory import Memory
 from modules.reminder import seconds_until, calculate_seconds, Reminders
+from modules.shell import EphemeralShell
 
 logger = logging.getLogger(__name__)
 
@@ -292,6 +294,31 @@ def initialize_main_agent(application: Application):
     location : LocationManager = application.bot_data.get(BotData.LOCATION, None)
     memory : Memory = application.bot_data.get(BotData.MEMORY, None)
     file_manager : InMemoryFileSystem = application.bot_data.get(BotData.FILE_MANAGER, None)
+    shell_environment: Optional[EphemeralShell] = application.bot_data.get(BotData.SHELL, None)
+
+    def run_shell_command(command: str, timeout_seconds: Optional[int] = None) -> Union[str, Dict[str, object]]:
+        """Execute a command inside the ephemeral shell workspace."""
+
+        if not shell_environment:
+            return "Shell environment is not available."
+
+        return shell_environment.run(command, timeout_seconds=timeout_seconds)
+
+    def list_shell_workspace() -> Union[str, Dict[str, object]]:
+        """List files and directories inside the ephemeral shell workspace."""
+
+        if not shell_environment:
+            return "Shell environment is not available."
+
+        return shell_environment.list_workspace()
+
+    def reset_shell_workspace() -> Union[str, Dict[str, object]]:
+        """Reset the ephemeral shell workspace, discarding all temporary files."""
+
+        if not shell_environment:
+            return "Shell environment is not available."
+
+        return shell_environment.reset()
 
     main_agent = Agent(
         name="Main Agent",
@@ -380,7 +407,24 @@ def initialize_main_agent(application: Application):
                 name="search_file_system",
                 description="Returns the current state of the file system.",
                 function=warp_file_manager(file_manager, file_manager.search)
-            )
+            ),
+            Tool(
+                name="run_shell_command",
+                description="Executes a command inside the isolated shell workspace. "
+                            "Provide the full command as a single string (without redirection or chaining). "
+                            "All changes are temporary and reset frequently.",
+                function=run_shell_command,
+            ),
+            Tool(
+                name="list_shell_workspace",
+                description="Lists files and directories currently available in the isolated shell workspace.",
+                function=list_shell_workspace,
+            ),
+            Tool(
+                name="reset_shell_workspace",
+                description="Resets the isolated shell workspace, discarding all temporary files.",
+                function=reset_shell_workspace,
+            ),
         ],
     )
 
