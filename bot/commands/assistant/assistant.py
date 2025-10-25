@@ -4,7 +4,7 @@ import logging
 import pytz
 
 
-from pydantic_ai import Agent, capture_run_messages, ImageUrl, AudioUrl
+from pydantic_ai import Agent, ImageUrl, AudioUrl
 from pydantic_ai.messages import ToolReturnPart, ToolCallPart
 from telegram import Update
 from telegram.constants import ChatAction
@@ -36,28 +36,6 @@ def get_current_time():
     return {"current_time": current_time_and_date}
 
 
-def split_text(text, max_length=2500):
-    """
-    Splits the input text into chunks not exceeding max_length characters.
-    Splitting is done at the nearest newline or space to avoid breaking words.
-    """
-    chunks = []
-    while len(text) > max_length:
-        # Try to split at the last newline within the limit
-        split_index = text.rfind('\n', 0, max_length)
-        if split_index == -1:
-            # If no newline, try to split at the last space
-            split_index = text.rfind(' ', 0, max_length)
-            if split_index == -1:
-                # If no space, split at max_length
-                split_index = max_length
-        chunk = text[:split_index].rstrip()
-        chunks.append(chunk)
-        text = text[split_index:].lstrip()
-    if text:
-        chunks.append(text)
-    return chunks
-
 class Assistant(Command):
     register = False
     priority = -1
@@ -79,6 +57,7 @@ class Assistant(Command):
 
         reminder.chat_id = update.effective_chat.id
         bot = Bot(context.bot, update.effective_chat.id)
+        context.bot_data[BotData.BOT] = bot
 
         ## Change status to typing
         await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
@@ -87,7 +66,7 @@ class Assistant(Command):
 
         ## This whole think is broken as if you send more that one image they all get registered as a separate message
         photos = []
-        if len(update.message.photo):
+        if update.message.photo:
             photo = update.message.photo[-1]
             file = await context.bot.get_file(photo.file_id)  # Renamed to clarify
             photos.append(file.file_path)
@@ -102,27 +81,40 @@ class Assistant(Command):
         # HH:MM format
         time_text = update.message.date.strftime("%H:%M")
 
-        message = [f"Send at {time_text}: " + (update.message.text or " ")]
+        base_text = update.message.text or update.message.caption or ""
+        base_text = base_text.strip()
 
+        direct_request_note = (
+            "This is direct request on telegram and your response is expected with at least one send message."
+        )
 
-        if len(photos) != 0:
+        if base_text:
+            composed_text = f"Send at {time_text}: {base_text}\n\n{direct_request_note}"
+        else:
+            composed_text = f"Send at {time_text}: (no text provided)\n\n{direct_request_note}"
+
+        if photos:
             logging.info(f"User sent {len(photos)} photos")
-            message = [ update.message.caption, ImageUrl(url=photos[0])]
+            composed_text += "\n\nAttachment: Photo provided with the message."
 
-        elif audio_url is not None:
+        if audio_url is not None:
             logging.info("User sent a voice message")
-            message = [ "Listen to the audio", AudioUrl(url=audio_url) ]
+            composed_text += "\n\nAttachment: Voice message provided with the message."
 
-        ## Has to be before we call agent as that will make sure at least one message is added to the memory
-        memory.add_message(role="User", content=update.message.text or "Text Not Found", role_type="user")
+        message_parts = [composed_text]
+
+        if photos:
+            message_parts.append(ImageUrl(url=photos[0]))
+
+        if audio_url is not None:
+            message_parts.append(AudioUrl(url=audio_url))
+
+        if memory:
+            memory.add_message(role="User", content=update.message.text or "Text Not Found", role_type="user")
 
         messages = context.bot_data.get(BotData.MESSAGE_HISTORY, [])
 
-        response = await main_agent.run(message, message_history=messages)
-
-        chunks = split_text(response.output)
-        for chunk in chunks:
-            memory.add_message(role="Telegram Assistant", content=chunk, role_type="assistant")
+        response = await main_agent.run(message_parts, message_history=messages)
 
         context.bot_data[BotData.MESSAGE_HISTORY] = response.all_messages()
 
@@ -147,15 +139,17 @@ class Assistant(Command):
             if len(content) > 2400:
                 continue
 
-            memory.add_message(
-                role=tool_call["name"],
-                content=f"{tool_call['name']}({tool_call['args']}) => {tool_call['output']}",
-                role_type="tool"
-            )
+            if memory:
+                memory.add_message(
+                    role=tool_call["name"],
+                    content=f"{tool_call['name']}({tool_call['args']}) => {tool_call['output']}",
+                    role_type="tool"
+                )
 
         db = ValkeyDB()
         if db.get_serialized(DatabaseConstants.DEBUG, False):
             for tool_call_id, tool_call in tool_calls.items():
                 await bot.send(f"`{tool_call['name']}({tool_call['args']}) => {tool_call['output']}`")
 
-        await bot.send(response.output)
+        if not any(call.get("name") == "send_telegram_message" for call in tool_calls.values()):
+            logging.warning("Direct Telegram request completed without calling send_telegram_message.")

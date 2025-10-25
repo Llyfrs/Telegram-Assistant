@@ -1,3 +1,4 @@
+import asyncio
 import functools
 import logging
 import os
@@ -15,6 +16,7 @@ from bot.commands.assistant.assistant import get_current_time
 from bot.watchers.email_summary import blocking_add_event
 from enums.bot_data import BotData
 from enums.database import DatabaseConstants
+from modules.bot import Bot
 from modules.calendar import Calendar
 from modules.database import ValkeyDB
 from modules.file_system import InMemoryFileSystem
@@ -90,6 +92,12 @@ def instructions(application: Application) -> str:
     """
 
     new_prompt = ""
+
+    new_prompt += (
+        "\n\nCommunication: Use the `send_telegram_message` tool to talk to the user."
+        " Telegram requests marked as direct will expect at least one call to this tool."
+        " Do not assume that text replies are delivered automatically."
+    )
 
     new_prompt += ("\n\n Bellow provided context is live collection of data about the user, and general state of systems."
                    "Use this information when it's relevant to better assist the user, and to compile with their preferences. ")
@@ -296,6 +304,57 @@ def initialize_main_agent(application: Application):
     file_manager : InMemoryFileSystem = application.bot_data.get(BotData.FILE_MANAGER, None)
     shell_environment: Optional[EphemeralShell] = application.bot_data.get(BotData.SHELL, None)
 
+    loop = asyncio.get_event_loop()
+
+    def ensure_primary_bot() -> Optional[Bot]:
+        bot_wrapper: Optional[Bot] = application.bot_data.get(BotData.BOT)
+
+        if bot_wrapper:
+            return bot_wrapper
+
+        chat_id = ValkeyDB().get_serialized(DatabaseConstants.MAIN_CHAT_ID, None)
+
+        if chat_id is None:
+            return None
+
+        if isinstance(chat_id, str):
+            try:
+                chat_id = int(chat_id)
+            except ValueError:
+                logger.error("Stored chat ID is not a valid integer: %s", chat_id)
+                return None
+
+        bot_wrapper = Bot(application.bot, chat_id)
+        application.bot_data[BotData.BOT] = bot_wrapper
+        return bot_wrapper
+
+    def send_telegram_message(text: str, markdown: bool = True, clean: bool = False) -> str:
+        bot_wrapper = ensure_primary_bot()
+
+        if bot_wrapper is None:
+            warning = "Main chat ID is not configured; unable to deliver Telegram message."
+            logger.warning(warning)
+            return warning
+
+        async def _send():
+            await bot_wrapper.send(text, markdown=markdown, clean=clean)
+
+        future = asyncio.run_coroutine_threadsafe(_send(), loop)
+
+        try:
+            future.result()
+        except Exception as exc:  # pragma: no cover - safety net
+            logger.error("Error while sending Telegram message: %s", exc)
+            return f"Failed to send message: {exc}"
+
+        if memory:
+            try:
+                memory.add_message(role="Telegram Assistant", content=text, role_type="assistant")
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.error("Failed to persist assistant message to memory: %s", exc)
+
+        return "Message sent to Telegram."
+
     def run_shell_command(command: str, timeout_seconds: Optional[int] = None) -> Union[str, Dict[str, object]]:
         """Execute a command inside the ephemeral shell workspace."""
 
@@ -358,6 +417,12 @@ def initialize_main_agent(application: Application):
                             "This is for events that require the user knows about them in advance and needs to plan around. "
                             "unlike reminders that are set and forget.",
                 function=blocking_add_event,
+            ),
+            Tool(
+                name="send_telegram_message",
+                description="Sends a Markdown-formatted message to the user's primary Telegram chat. "
+                            "Use this for any user-facing response.",
+                function=send_telegram_message,
             ),
             Tool(
                 name="remove_location",
