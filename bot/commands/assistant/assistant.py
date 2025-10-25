@@ -5,7 +5,7 @@ import pytz
 
 
 from pydantic_ai import Agent, ImageUrl, AudioUrl
-from pydantic_ai.messages import ToolReturnPart, ToolCallPart
+from pydantic_ai.messages import ToolReturnPart, ToolCallPart, TextPart
 from telegram import Update
 from telegram.constants import ChatAction
 from telegram.ext import ContextTypes, filters, MessageHandler
@@ -85,7 +85,7 @@ class Assistant(Command):
         base_text = base_text.strip()
 
         direct_request_note = (
-            "This is direct request on telegram and your response is expected with at least one send message."
+            "This is direct request on telegram and your response is expected with at least one send message. Unless asked otherwise."
         )
 
         if base_text:
@@ -119,7 +119,9 @@ class Assistant(Command):
         context.bot_data[BotData.MESSAGE_HISTORY] = response.all_messages()
 
         tool_calls = {}
+        bot_output = ""
         for msg in response.new_messages():
+            print(msg)
             parts = msg.parts
             for part in parts:
                 if isinstance(part, ToolCallPart):
@@ -130,6 +132,10 @@ class Assistant(Command):
 
                 if isinstance(part, ToolReturnPart):
                     tool_calls[part.tool_call_id]["output"] = part.content
+
+                if isinstance(part, TextPart):
+                    bot_output += part.content + "\n"
+
 
 
         for tool_call_id, tool_call in tool_calls.items():
@@ -150,6 +156,8 @@ class Assistant(Command):
         if db.get_serialized(DatabaseConstants.DEBUG, False):
             for tool_call_id, tool_call in tool_calls.items():
                 await bot.send(f"`{tool_call['name']}({tool_call['args']}) => {tool_call['output']}`")
+
+            await bot.send(f"Generated: `{bot_output}`")
 
         if not any(call.get("name") == "send_telegram_message" for call in tool_calls.values()):
             logging.warning("Direct Telegram request completed without calling send_telegram_message.")
