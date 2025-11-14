@@ -43,7 +43,7 @@ if use_openAI:
     ## Not supported for now
     # {"type":"image_generation"}
 
-    model = OpenAIResponsesModel('gpt-5', provider=provider)
+    model = OpenAIResponsesModel('gpt-5.1', provider=provider)
 else:
     provider = OpenRouterProvider(api_key=os.getenv("OPENROUTER_API_KEY"))
     model = OpenAIModel('openai/gpt-5', provider=provider)
