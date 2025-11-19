@@ -7,3 +7,5 @@ settings.pickle
 credentials.json
 /.idea/
 __pycache__
+.env
+/.vscode/

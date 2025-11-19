@@ -17,7 +17,7 @@ class BotData(Enum):
 
     FILE_MANAGER = "file_manager"
 
-    SHELL = "shell_environment"
+
 
 
     LOCATION = "location"

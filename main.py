@@ -6,6 +6,10 @@ import json
 import logging
 import os
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 import pytz
 from telegram.ext import Defaults
 
@@ -16,7 +20,7 @@ from modules.calendar import Calendar
 from modules.database import ValkeyDB
 from modules.location_manager import LocationManager
 from modules.memory import Memory
-from modules.shell import EphemeralShell
+
 from modules.timetable import TimeTable
 from modules.tools import init_file_manager
 from modules.torn import Torn
@@ -70,7 +74,7 @@ if __name__ == '__main__':
     application.bot_data[BotData.LOCATION] = LocationManager(history_size=7)
 
     application.bot_data[BotData.FILE_MANAGER] = ValkeyDB().get_serialized(DatabaseConstants.FILE_MANAGER, init_file_manager())
-    application.bot_data[BotData.SHELL] = EphemeralShell()
+
 
 
     chat_id = ValkeyDB().get_serialized(DatabaseConstants.MAIN_CHAT_ID, None)
