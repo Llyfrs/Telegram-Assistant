@@ -28,7 +28,7 @@ from modules.reminder import seconds_until, calculate_seconds, Reminders
 logger = logging.getLogger(__name__)
 
 
-use_openAI = True
+use_openAI = False
 
 model_settings = None
 
@@ -46,7 +46,7 @@ if use_openAI:
     model = OpenAIResponsesModel('gpt-5.1', provider=provider)
 else:
     provider = OpenRouterProvider(api_key=os.getenv("OPENROUTER_API_KEY"))
-    model = OpenAIModel('openai/gpt-5', provider=provider)
+    model = OpenAIModel('google/gemini-3-pro-preview', provider=provider)
 
 
 def main_agent_system_prompt() -> str:
