@@ -73,7 +73,7 @@ if __name__ == '__main__':
 
     application.bot_data[BotData.LOCATION] = LocationManager(history_size=7)
 
-    application.bot_data[BotData.FILE_MANAGER] = ValkeyDB().get_serialized(DatabaseConstants.FILE_MANAGER, init_file_manager())
+    application.bot_data[BotData.FILE_MANAGER] = init_file_manager()
 
 
 

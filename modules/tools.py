@@ -4,7 +4,7 @@ This file is containing tools that I use around the bot, it helps me keep the co
 
 import re
 
-from modules.file_system import InMemoryFileSystem
+from modules.file_system import DiskFileSystem
 
 
 def escape_chars(match):
@@ -61,10 +61,10 @@ def debug(steps):
 
 def init_file_manager():
     """Initialize file manager"""
-    file_manager = InMemoryFileSystem()
-    file_manager.mkdir("/Memory")
-    file_manager.mkdir("/Logs")
-    file_manager.create_file("/Logs/logs.txt", "Log file created")
-    file_manager.mkdir("/Daily")
+    file_manager = DiskFileSystem()
+    file_manager.mkdir("memory")
+    file_manager.mkdir("logs")
+    file_manager.create_file("logs/logs.txt", "Log file created")
+    file_manager.mkdir("daily")
 
     return file_manager

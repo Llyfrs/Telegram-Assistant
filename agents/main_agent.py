@@ -19,7 +19,7 @@ from enums.database import DatabaseConstants
 from modules.bot import Bot
 from modules.calendar import Calendar
 from modules.database import ValkeyDB
-from modules.file_system import InMemoryFileSystem
+from modules.file_system import DiskFileSystem
 from modules.location_manager import LocationManager
 from modules.memory import Memory
 from modules.reminder import seconds_until, calculate_seconds, Reminders
@@ -77,9 +77,9 @@ Do not include timestamps in your own responses; messages are always chronologic
 Memory updates automatically based on user messages; you don't need to handle this manually. 
 
 Filework is in a sandboxed root directory:  
-- /Daily for daily notes  
-- /Memory for permanent text-based memory (keep files short for token limits)  
-- /Logs/log.txt for logs (mainly for debugging).  
+- /daily for daily notes  
+- /memory for permanent text-based memory (keep files short for token limits)  
+- /logs/logs.txt for logs (mainly for debugging).  
 
 The user can't directly access the file system. 
 Do not invent capabilities you don't have or offer actions/questions you can't fulfill.
@@ -262,32 +262,25 @@ def get_memory_files(application: Application) -> str:
     This function is used to get the memory files for the main agent.
     """
 
-    new_prompt = "\n\nMEMORY FILES (/Memory) \n\n"
+    new_prompt = "\n\nMEMORY FILES (/memory) \n\n"
 
-    file_manager : InMemoryFileSystem = application.bot_data.get(BotData.FILE_MANAGER, None)
+    file_manager : DiskFileSystem = application.bot_data.get(BotData.FILE_MANAGER, None)
 
     if not file_manager:
         return "No file manager available."
 
-    files = file_manager.list_dir("/Memory")
+    files = file_manager.list_dir("/memory")
 
-    if not files:
+    if not files or isinstance(files, str):
         return "No memory files available."
 
     for file in files:
-        file_path = f"/Memory/{file}"
+        file_path = f"/memory/{file}"
         content = file_manager.read_file(file_path)
         new_prompt += f"### `{file}: `\n{content}\n\n"
 
     return new_prompt
 
-## Warps the file manager function to save on each call
-def warp_file_manager(file_manager: InMemoryFileSystem, function):
-    @functools.wraps(function)
-    def wrapper(*args, **kwargs):
-        ValkeyDB().set_serialized(DatabaseConstants.FILE_MANAGER, file_manager)
-        return function(*args, **kwargs)
-    return wrapper
 
 def initialize_main_agent(application: Application):
 
@@ -301,7 +294,7 @@ def initialize_main_agent(application: Application):
 
     location : LocationManager = application.bot_data.get(BotData.LOCATION, None)
     memory : Memory = application.bot_data.get(BotData.MEMORY, None)
-    file_manager : InMemoryFileSystem = application.bot_data.get(BotData.FILE_MANAGER, None)
+    file_manager : DiskFileSystem = application.bot_data.get(BotData.FILE_MANAGER, None)
 
 
     loop = asyncio.get_event_loop()
@@ -375,8 +368,8 @@ def initialize_main_agent(application: Application):
             Tool(
                 name="create_reminder",
                 description="Creates a reminder that will notify the user after a specified number of seconds. "
-                            "This function is non blocking and will create a "
-                            "new thread that notifies the user automatically.",
+                "This function is non blocking and will create a "
+                "new thread that notifies the user automatically.",
                 function=reminder.add_reminder
             ),
             Tool(
@@ -392,14 +385,14 @@ def initialize_main_agent(application: Application):
             Tool(
                 name="create_event",
                 description="Creates an event in a the users google calendar. "
-                            "This is for events that require the user knows about them in advance and needs to plan around. "
-                            "unlike reminders that are set and forget.",
+                "This is for events that require the user knows about them in advance and needs to plan around. "
+                "unlike reminders that are set and forget.",
                 function=blocking_add_event,
             ),
             Tool(
                 name="send_telegram_message",
                 description="Sends a Markdown-formatted message to the user's primary Telegram chat. "
-                            "Use this for any user-facing response.",
+                "Use this for any user-facing response.",
                 function=send_telegram_message,
             ),
             Tool(
@@ -410,46 +403,46 @@ def initialize_main_agent(application: Application):
             Tool(
                 name="search_knowledge_graph",
                 description="Searches the knowledge graph for a given query and returns the results."
-                            "Use only when the already provided memory is not enough to answer user questions you might have."
-                            "Feel free to call it iteratively (perform search look at results, search again based on the results).",
+                "Use only when the already provided memory is not enough to answer user questions you might have."
+                "Feel free to call it iteratively (perform search look at results, search again based on the results).",
                 function=memory.search_graph
             ),
             ## File Manager Tools
             Tool(
                 name="mkdir",
                 description="Creates a new directory in the file system.",
-                function=warp_file_manager(file_manager, file_manager.mkdir)
+                function=file_manager.mkdir
             ),
             Tool(
                 name="ls",
                 description="Lists the contents of a directory in the file system.",
-                function=warp_file_manager(file_manager, file_manager.list_dir)
+                function=file_manager.list_dir
             ),
             Tool(
                 name="read_file",
                 description="Reads the contents of a file in the file system.",
-                function=warp_file_manager(file_manager, file_manager.read_file)
+                function=file_manager.read_file
             ),
             Tool(
                 name="write_file",
                 description="Writes content to a file in the file system. "
-                            "If the file already exists, it will be overwritten.",
-                function=warp_file_manager(file_manager, file_manager.write_file)
+                "If the file already exists, it will be overwritten.",
+                function=file_manager.write_file
             ),
             Tool(
                 name="create_file",
                 description="Creates a new file in the file system with the specified content.",
-                function=warp_file_manager(file_manager, file_manager.create_file)
+                function=file_manager.create_file
             ),
             Tool(
                 name="delete_file",
                 description="Deletes a file or directory in the file system.",
-                function=warp_file_manager(file_manager, file_manager.delete)
+                function=file_manager.delete
             ),
             Tool(
                 name="search_file_system",
                 description="Returns the current state of the file system.",
-                function=warp_file_manager(file_manager, file_manager.search)
+                function=file_manager.search
             ),
 
         ],
