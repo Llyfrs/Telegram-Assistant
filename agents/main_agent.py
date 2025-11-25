@@ -46,7 +46,7 @@ if use_openAI:
     model = OpenAIResponsesModel('gpt-5.1', provider=provider)
 else:
     provider = OpenRouterProvider(api_key=os.getenv("OPENROUTER_API_KEY"))
-    model = OpenAIModel('google/gemini-3-pro-preview', provider=provider)
+    model = OpenAIModel('google/gemini-3-pro-preview', provider=provider, request_parameters={'extra_body': {'include_reasoning': True}})
 
 
 def main_agent_system_prompt() -> str:
