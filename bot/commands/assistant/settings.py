@@ -3,7 +3,7 @@ from telegram.ext import ConversationHandler, CommandHandler, CallbackQueryHandl
 
 from bot.classes.command import Command
 from bot.commands.time_table.time_table import cancel
-from modules.database import ValkeyDB
+from modules.database import MongoDB
 
 
 # Constants for cleaner code
@@ -28,11 +28,11 @@ class SettingsHandler:
     @staticmethod
     def generate_settings_keyboard():
         """Dynamically generate keyboard based on current settings"""
-        db = ValkeyDB()
+        db = MongoDB()
         keyboard = []
 
         for display_name, setting_key in SETTINGS:
-            current_value = db.get_serialized(setting_key, False)
+            current_value = db.get(setting_key, False)
             keyboard.append([InlineKeyboardButton(
                 text=f"{display_name}: {current_value}",
                 callback_data=setting_key
@@ -62,9 +62,9 @@ class SettingsHandler:
 
         # Toggle the setting if it's a valid setting key
         if any(query.data == setting[1] for setting in SETTINGS):
-            db = ValkeyDB()
-            current_value = db.get_serialized(query.data, False)
-            db.set_serialized(query.data, not current_value)
+            db = MongoDB()
+            current_value = db.get(query.data, False)
+            db.set(query.data, not current_value)
 
         # Update the message with fresh keyboard
         await query.edit_message_text(

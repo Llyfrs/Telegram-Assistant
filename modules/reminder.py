@@ -1,6 +1,5 @@
 import asyncio
 import datetime
-import pickle
 import time
 import threading
 import logging
@@ -8,7 +7,7 @@ import logging
 import pytz
 from telegram.ext import ContextTypes
 
-from modules.database import ValkeyDB
+from modules.database import MongoDB
 
 
 class Reminder:
@@ -69,12 +68,12 @@ class Reminders:
         self.reminder_data: list = []
         self.chat_id = None
         self.bot = bot
-        self.db = ValkeyDB()
+        self.db = MongoDB()
 
         self.loop = asyncio.get_event_loop()
 
         try:
-            temp = self.db.get_serialized("reminders")
+            temp = self.db.get("reminders")
 
             for reminder in temp:
                 if reminder[0] - time.time() < 0:
@@ -92,7 +91,7 @@ class Reminders:
         self.reminders.append(rem)
         self.reminder_data.append((time.time() + seconds, reminder, self.chat_id))
 
-        self.db.set_serialized("reminders", self.reminder_data)
+        self.db.set("reminders", self.reminder_data)
 
         logging.info(f"[REMINDER] Reminder set for {convert_seconds_to_hms(seconds)} from now")
 
@@ -121,7 +120,7 @@ class Reminders:
             self.reminders.pop(index)
             self.reminder_data.pop(index)
 
-        self.db.set_serialized("reminders", self.reminder_data)
+        self.db.set("reminders", self.reminder_data)
 
         return "Reminders deleted"
 

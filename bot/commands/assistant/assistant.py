@@ -14,7 +14,7 @@ from bot.classes.command import Command
 from enums.bot_data import BotData
 from enums.database import DatabaseConstants
 from modules.bot import Bot
-from modules.database import ValkeyDB
+from modules.database import MongoDB
 from modules.memory import Memory
 from modules.reminder import Reminders
 
@@ -152,8 +152,8 @@ class Assistant(Command):
                     role_type="tool"
                 )
 
-        db = ValkeyDB()
-        if db.get_serialized(DatabaseConstants.DEBUG, False):
+        db = MongoDB()
+        if db.get(DatabaseConstants.DEBUG, False):
             for tool_call_id, tool_call in tool_calls.items():
                 await bot.send(f"`{tool_call['name']}({tool_call['args']}) => {tool_call['output']}`")
 

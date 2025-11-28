@@ -18,7 +18,7 @@ from enums.bot_data import BotData
 from enums.database import DatabaseConstants
 from modules.bot import Bot
 from modules.calendar import Calendar
-from modules.database import ValkeyDB
+from modules.database import MongoDB
 from modules.file_system import DiskFileSystem
 from modules.location_manager import LocationManager
 from modules.memory import Memory
@@ -308,7 +308,7 @@ def initialize_main_agent(application: Application):
         if bot_wrapper:
             return bot_wrapper
 
-        chat_id = ValkeyDB().get_serialized(DatabaseConstants.MAIN_CHAT_ID, None)
+        chat_id = MongoDB().get(DatabaseConstants.MAIN_CHAT_ID, None)
 
         if chat_id is None:
             return None

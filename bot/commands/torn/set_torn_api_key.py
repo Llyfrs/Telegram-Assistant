@@ -9,7 +9,7 @@ Should be rewritten into a conversation.
 
 from bot.classes.command import command
 from enums.bot_data import BotData
-from modules.database import ValkeyDB
+from modules.database import MongoDB
 from modules.torn import Torn
 
 
@@ -17,7 +17,7 @@ from modules.torn import Torn
 async def set_torn_api_key(update, context):
     """Sets the Torn API key and refreshes the Torn client instance."""
 
-    db = ValkeyDB()
+    db = MongoDB()
     parts = update.message.text.split(" ")
     if len(parts) < 2:
         await update.message.reply_text("Usage: /set_torn_api_key <api_key>")
@@ -26,8 +26,8 @@ async def set_torn_api_key(update, context):
     api_key = parts[1]
     chat_id = update.message.chat.id
 
-    db.set_serialized("torn_api_key", api_key)
-    db.set_serialized("chat_id", chat_id)
+    db.set("torn_api_key", api_key)
+    db.set("chat_id", chat_id)
 
     torn = Torn(context.bot, api_key, chat_id)
     context.bot_data[BotData.TORN] = torn

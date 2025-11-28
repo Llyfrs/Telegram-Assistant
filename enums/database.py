@@ -1,5 +1,6 @@
 from enum import Enum
 
+
 class DatabaseConstants(str, Enum):
     TORN_API_KEY = "torn_api_key"
 
@@ -10,6 +11,3 @@ class DatabaseConstants(str, Enum):
     FILE_MANAGER = "file_manager"
 
     DEBUG = "debug"
-
-    LOCATION = "location"
-    LOCATION_HISTORY = "location_history"

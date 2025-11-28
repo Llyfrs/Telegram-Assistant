@@ -10,7 +10,7 @@ from telegramify_markdown import markdownify
 from bot.classes.watcher import Watcher
 from enums.bot_data import BotData
 from enums.database import DatabaseConstants
-from modules.database import ValkeyDB
+from modules.database import MongoDB
 from modules.email import Email
 from agents.email_summary_agent import Event
 
@@ -57,7 +57,7 @@ class EmailSummary(Watcher):
     @classmethod
     async def job(cls, context: ContextTypes.DEFAULT_TYPE) -> None:
 
-        chat_id = ValkeyDB().get_serialized(DatabaseConstants.EMAIL_CHAT_ID)
+        chat_id = MongoDB().get(DatabaseConstants.EMAIL_CHAT_ID)
 
         if chat_id is None:
             logger.error("chat_id is not set")
@@ -106,7 +106,7 @@ class EmailSummary(Watcher):
     async def create_event(cls, event: Event) -> bool:
         """Create an event from the callback query and add it to the calendar"""
 
-        chat_id = ValkeyDB().get_serialized(DatabaseConstants.EMAIL_CHAT_ID)
+        chat_id = MongoDB().get(DatabaseConstants.EMAIL_CHAT_ID)
 
         if chat_id is None:
             logger.error("chat_id is not set")

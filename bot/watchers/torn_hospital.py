@@ -3,7 +3,7 @@ from telegram.ext import ContextTypes
 from bot.classes.watcher import run_repeated
 from enums.bot_data import BotData
 from enums.database import DatabaseConstants
-from modules.database import ValkeyDB
+from modules.database import MongoDB
 from modules.torn import Torn
 
 
@@ -22,6 +22,6 @@ async def torn_hospital(context: ContextTypes.DEFAULT_TYPE):
 
     if user["status"]["state"] != "Hospital":
         await context.bot.send_message(
-            chat_id=ValkeyDB().get_serialized(DatabaseConstants.MAIN_CHAT_ID),
+            chat_id=MongoDB().get(DatabaseConstants.MAIN_CHAT_ID),
             text="You are not in the hospital. Please walk in to some doors. https://www.torn.com/gym.php"
         )

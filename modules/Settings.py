@@ -1,19 +1,18 @@
 import logging
-import pickle
-from modules.database import ValkeyDB
+from modules.database import MongoDB
 
 class Settings:
 
     def __init__(self, file: str = ""):
         self.file = file
         self.settings = {}
-        self.db = ValkeyDB()
+        self.db = MongoDB()
         self.load_settings()
 
 
     def load_settings(self):
         try:
-            settings = self.db.get_serialized("settings")
+            settings = self.db.get("settings")
 
         except Exception as exc:
             logging.error(f"Error loading settings: {exc}")
@@ -24,7 +23,7 @@ class Settings:
             }
     def save_settings(self):
         try:
-            self.db.set_serialized("settings", self.settings)
+            self.db.set("settings", self.settings)
 
         except Exception as exc:
             logging.error(f"Error saving settings: {exc}")

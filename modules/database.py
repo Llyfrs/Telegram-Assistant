@@ -1,114 +1,272 @@
+from __future__ import annotations
+
 import fnmatch
 import logging
 import os
+from datetime import datetime, timedelta
+from typing import Any, ClassVar, Self
 
-import pickle
-import valkey
-from valkey.exceptions import ConnectionError as ValkeyConnectionError
+from pydantic import BaseModel, ConfigDict
+from pymongo import MongoClient
+from pymongo.collection import Collection
+from pymongo.database import Database
+from pymongo.errors import ConnectionFailure
 
 
-class _InMemoryValkey:
-    """A minimal in-memory fallback that mimics the valkey client API we use."""
+class _InMemoryMongo:
+    """A minimal in-memory fallback that mimics MongoDB operations."""
 
     def __init__(self):
-        self._store = {}
+        self._collections: dict[str, dict[str, dict]] = {}
 
     def ping(self):
         return True
 
-    def set(self, key, value, ex=None):  # noqa: ARG002 - 'ex' kept for parity
-        self._store[key] = value
-
-    def get(self, key):
-        return self._store.get(key)
-
-    def delete(self, key):
-        self._store.pop(key, None)
-
-    def scan(self, cursor: int = 0, match: str | None = None):
-        if match is None:
-            keys = list(self._store.keys())
-        else:
-            keys = [key for key in self._store.keys() if fnmatch.fnmatch(key, match)]
-        return 0, [key.encode("utf-8") for key in keys]
+    def get_collection(self, name: str) -> _InMemoryCollection:
+        if name not in self._collections:
+            self._collections[name] = {}
+        return _InMemoryCollection(self._collections[name])
 
 
-class ValkeyDB:
-    valkey_client : valkey.Valkey = None
-    cache = {}
+class _InMemoryCollection:
+    """In-memory collection that mimics PyMongo Collection API."""
+
+    def __init__(self, store: dict[str, dict]):
+        self._store = store
+
+    def find_one(self, filter: dict) -> dict | None:
+        for doc in self._store.values():
+            if self._matches(doc, filter):
+                return doc.copy()
+        return None
+
+    def find(self, filter: dict | None = None) -> list[dict]:
+        filter = filter or {}
+        return [doc.copy() for doc in self._store.values() if self._matches(doc, filter)]
+
+    def insert_one(self, document: dict):
+        key = str(document.get("_id", id(document)))
+        self._store[key] = document.copy()
+
+    def update_one(self, filter: dict, update: dict, upsert: bool = False):
+        for key, doc in self._store.items():
+            if self._matches(doc, filter):
+                if "$set" in update:
+                    doc.update(update["$set"])
+                return
+        if upsert and "$set" in update:
+            new_doc = {**filter, **update["$set"]}
+            key = str(new_doc.get("_id", id(new_doc)))
+            self._store[key] = new_doc
+
+    def delete_one(self, filter: dict):
+        for key, doc in list(self._store.items()):
+            if self._matches(doc, filter):
+                del self._store[key]
+                return
+
+    def delete_many(self, filter: dict):
+        to_delete = [key for key, doc in self._store.items() if self._matches(doc, filter)]
+        for key in to_delete:
+            del self._store[key]
+
+    def _matches(self, doc: dict, filter: dict) -> bool:
+        for key, value in filter.items():
+            if key not in doc:
+                return False
+            if isinstance(value, dict):
+                # Handle MongoDB operators
+                for op, op_value in value.items():
+                    if op == "$gte" and not (doc[key] >= op_value):
+                        return False
+                    elif op == "$lte" and not (doc[key] <= op_value):
+                        return False
+                    elif op == "$gt" and not (doc[key] > op_value):
+                        return False
+                    elif op == "$lt" and not (doc[key] < op_value):
+                        return False
+                    elif op == "$regex" and not fnmatch.fnmatch(str(doc[key]), value.get("$regex", "*")):
+                        return False
+            elif doc[key] != value:
+                return False
+        return True
+
+
+class MongoDB:
+    """MongoDB client with key-value store and collection access."""
+
+    _client: ClassVar[MongoClient | _InMemoryMongo | None] = None
+    _db: ClassVar[Database | _InMemoryMongo | None] = None
+
     def __init__(self):
-        valkey_uri = os.getenv("VALKEY_URI")
-        if ValkeyDB.valkey_client is None:
-            ValkeyDB.valkey_client = self._init_client(valkey_uri)
-
-
-        self.valkey_client = ValkeyDB.valkey_client
-        ValkeyDB.cache = {}
+        if MongoDB._client is None:
+            MongoDB._client, MongoDB._db = self._init_client()
 
     @staticmethod
-    def _init_client(valkey_uri: str | None):
-        if not valkey_uri:
-            logging.warning("VALKEY_URI not provided. Using in-memory database fallback.")
-            return _InMemoryValkey()
+    def _init_client() -> tuple[MongoClient | _InMemoryMongo, Database | _InMemoryMongo]:
+        mongo_uri = os.getenv("MONGODB_URI")
+
+        if not mongo_uri:
+            logging.warning("MONGODB_URI not provided. Using in-memory database fallback.")
+            fallback = _InMemoryMongo()
+            return fallback, fallback
 
         try:
-            client = valkey.from_url(valkey_uri)
-            # Force a connection to ensure credentials/network are valid.
-            client.ping()
-            return client
-        except (ValkeyConnectionError, OSError) as error:
+            client = MongoClient(mongo_uri)
+            client.admin.command("ping")
+            db_name = os.getenv("MONGODB_DATABASE", "telegram_assistant")
+            db = client[db_name]
+            logging.info(f"Connected to MongoDB database: {db_name}")
+            return client, db
+        except ConnectionFailure as error:
             logging.warning(
-                "Failed to connect to Valkey at %s (%s). Falling back to in-memory storage.",
-                valkey_uri,
+                "Failed to connect to MongoDB at %s (%s). Falling back to in-memory storage.",
+                mongo_uri,
                 error,
             )
-            return _InMemoryValkey()
+            fallback = _InMemoryMongo()
+            return fallback, fallback
 
-    def set(self, key: str, value, expire: int = None):
-        self.valkey_client.set(key, value, ex=expire)
-        ValkeyDB.cache[key] = value
+    def _kv_collection(self) -> Collection | _InMemoryCollection:
+        """Get the key-value store collection."""
+        if isinstance(MongoDB._db, _InMemoryMongo):
+            return MongoDB._db.get_collection("kv_store")
+        return MongoDB._db["kv_store"]
 
+    def collection(self, name: str) -> Collection | _InMemoryCollection:
+        """Get a named collection for structured document storage."""
+        if isinstance(MongoDB._db, _InMemoryMongo):
+            return MongoDB._db.get_collection(name)
+        return MongoDB._db[name]
 
-    def get(self, key: str, default=None):
+    # ─────────────────────────────────────────────────────────────────────────────
+    # Key-Value Store Methods
+    # ─────────────────────────────────────────────────────────────────────────────
 
-        if key in ValkeyDB.cache:
-            return ValkeyDB.cache[key]
+    def set(self, key: str, value: Any, expire: int | None = None) -> None:
+        """Set a key-value pair. Optional expire in seconds."""
+        doc = {"_id": key, "value": value}
+        if expire is not None:
+            doc["expires_at"] = datetime.utcnow() + timedelta(seconds=expire)
+        self._kv_collection().update_one({"_id": key}, {"$set": doc}, upsert=True)
 
-        value = self.valkey_client.get(key)
-        if value is None:
+    def get(self, key: str, default: Any = None) -> Any:
+        """Get a value by key. Returns default if not found or expired."""
+        doc = self._kv_collection().find_one({"_id": key})
+        if doc is None:
             return default
+
+        # Check expiration
+        expires_at = doc.get("expires_at")
+        if expires_at and datetime.utcnow() > expires_at:
+            self.delete(key)
+            return default
+
+        return doc.get("value", default)
+
+    def delete(self, key: str) -> None:
+        """Delete a key-value pair."""
+        self._kv_collection().delete_one({"_id": key})
+
+    def list(self, prefix: str) -> list[str]:
+        """List all keys matching a prefix."""
+        # For real MongoDB, use regex; for in-memory, fnmatch handles it
+        if isinstance(MongoDB._db, _InMemoryMongo):
+            docs = self._kv_collection().find({})
+            return [doc["_id"] for doc in docs if doc["_id"].startswith(prefix)]
         else:
-            return value
+            docs = self._kv_collection().find({"_id": {"$regex": f"^{prefix}"}})
+            return [doc["_id"] for doc in docs]
 
-    def set_serialized(self, key: str, value, expire: int = None):
-        bytes_value = pickle.dumps(value)
-        self.set(key, bytes_value, expire)
 
-    def get_serialized(self, key: str, default=None):
+# ─────────────────────────────────────────────────────────────────────────────
+# Document Base Class for Typed Collections
+# ─────────────────────────────────────────────────────────────────────────────
 
-        value = self.get(key, default)
+class Document(BaseModel):
+    """
+    Base class for MongoDB documents with automatic serialization.
 
-        if value is default:
-            return default
+    Usage:
+        class User(Document):
+            model_config = ConfigDict(collection_name="users")
 
-        if isinstance(value, (bytes, bytearray)):
-            try:
-                return pickle.loads(value)
-            except Exception as ex:
-                logging.error(f"Failed deserialization {ex}, returning default {default}")
-                return default
+            name: str
+            email: str
 
-        logging.debug("Value for key %s is not serialized bytes. Returning default.", key)
-        return default
+        # Save
+        user = User(name="John", email="john@example.com")
+        user.save()
 
-    def delete(self, key: str):
-        self.valkey_client.delete(key)
-        if key in ValkeyDB.cache:
-            del ValkeyDB.cache[key]
+        # Query
+        users = User.find(name="John")
+        user = User.find_one(email="john@example.com")
 
-    def list(self, prefix: str):
+        # Delete
+        User.delete_one(name="John")
+    """
 
-        keys = []
-        for key in self.valkey_client.scan(match=prefix + "*")[1]:
-            keys.append(key.decode("utf-8"))
-        return keys
+    model_config = ConfigDict(
+        extra="ignore",
+        arbitrary_types_allowed=True,
+    )
+
+    @classmethod
+    def _get_collection_name(cls) -> str:
+        """Get collection name from model_config or use class name."""
+        config = cls.model_config
+        if isinstance(config, dict) and "collection_name" in config:
+            return config["collection_name"]
+        return cls.__name__.lower() + "s"
+
+    @classmethod
+    def _collection(cls) -> Collection | _InMemoryCollection:
+        """Get the MongoDB collection for this document type."""
+        return MongoDB().collection(cls._get_collection_name())
+
+    def save(self, key_field: str | None = None) -> None:
+        """
+        Save this document to MongoDB.
+
+        Args:
+            key_field: Field to use as unique identifier for upsert.
+                       If None, always inserts a new document.
+        """
+        data = self.model_dump(mode="json")
+
+        if key_field and key_field in data:
+            self._collection().update_one(
+                {key_field: data[key_field]},
+                {"$set": data},
+                upsert=True
+            )
+        else:
+            self._collection().insert_one(data)
+
+    @classmethod
+    def find(cls, **query) -> list[Self]:
+        """Find all documents matching the query."""
+        docs = cls._collection().find(query)
+        return [cls.model_validate(doc) for doc in docs]
+
+    @classmethod
+    def find_one(cls, **query) -> Self | None:
+        """Find a single document matching the query."""
+        doc = cls._collection().find_one(query)
+        if doc is None:
+            return None
+        return cls.model_validate(doc)
+
+    @classmethod
+    def delete_one(cls, **query) -> None:
+        """Delete a single document matching the query."""
+        cls._collection().delete_one(query)
+
+    @classmethod
+    def delete_many(cls, **query) -> None:
+        """Delete all documents matching the query."""
+        cls._collection().delete_many(query)
+
+
+# Backward compatibility alias
+ValkeyDB = MongoDB

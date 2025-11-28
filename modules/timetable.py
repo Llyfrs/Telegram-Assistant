@@ -1,14 +1,14 @@
 import logging
 from datetime import datetime
 
-from modules.database import ValkeyDB
+from modules.database import MongoDB
 
 
 class TimeTable:
     def __init__(self, timezone):
-        self.db = ValkeyDB()
+        self.db = MongoDB()
         self.timezone : datetime.tzinfo  = timezone
-        self.timetable = self.db.get_serialized("timetable", {})
+        self.timetable = self.db.get("timetable", {})
 
         logging.info(f"TimeTable: {self.timetable}")
 
@@ -24,7 +24,7 @@ class TimeTable:
             "location": location
         })
 
-        self.db.set_serialized("timetable", self.timetable)
+        self.db.set("timetable", self.timetable)
 
     def now(self):
         day = datetime.now(self.timezone).strftime("%A").lower()
@@ -70,11 +70,11 @@ class TimeTable:
         if len(self.timetable[day]) == 0:
             self.timetable.pop(day)
 
-        self.db.set_serialized("timetable", self.timetable)
+        self.db.set("timetable", self.timetable)
 
     def clear(self, day):
         self.timetable[day] = []
-        self.db.set_serialized("timetable", self.timetable)
+        self.db.set("timetable", self.timetable)
 
 
     def get_day(self, day):

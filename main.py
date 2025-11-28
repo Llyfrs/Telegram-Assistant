@@ -16,7 +16,7 @@ from agents.main_agent import initialize_main_agent
 from bot.classes.CustomeAplicationBuilder import CustomApplicationBuilder
 from enums.database import DatabaseConstants
 from modules.calendar import Calendar
-from modules.database import ValkeyDB
+from modules.database import MongoDB
 from modules.location_manager import LocationManager
 from modules.memory import Memory
 
@@ -69,9 +69,9 @@ if __name__ == '__main__':
 
 
 
-    chat_id = ValkeyDB().get_serialized(DatabaseConstants.MAIN_CHAT_ID, None)
+    chat_id = MongoDB().get(DatabaseConstants.MAIN_CHAT_ID, None)
 
-    API_KEY = ValkeyDB().get_serialized(DatabaseConstants.TORN_API_KEY, "")
+    API_KEY = MongoDB().get(DatabaseConstants.TORN_API_KEY, "")
 
     t = Torn(application.bot, API_KEY , chat_id)
 

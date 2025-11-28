@@ -3,7 +3,7 @@ from telegram.ext import ContextTypes
 from bot.classes.watcher import run_repeated
 from enums.bot_data import BotData
 from enums.database import DatabaseConstants
-from modules.database import ValkeyDB
+from modules.database import MongoDB
 from modules.torn import Torn
 
 # @run_repeated(interval=180)
@@ -22,6 +22,6 @@ async def torn_racing(context: ContextTypes.DEFAULT_TYPE):
 
     if user["icons"].get("icon17", None) is None:
         await context.bot.send_message(
-            chat_id=ValkeyDB().get_serialized(DatabaseConstants.MAIN_CHAT_ID),
+            chat_id=MongoDB().get(DatabaseConstants.MAIN_CHAT_ID),
             text="You are not in race. Join now https://www.torn.com/racing.php"
         )

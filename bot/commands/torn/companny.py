@@ -7,7 +7,7 @@ from telegram.ext import Application, ConversationHandler, CommandHandler, Callb
 
 from bot.classes.command import Command
 from bot.commands.time_table.time_table import cancel
-from modules.database import ValkeyDB
+from modules.database import MongoDB
 from modules.torn import Torn
 
 
@@ -39,7 +39,7 @@ class Company(Command):
 
         keyboard = []
 
-        employees_setting = ValkeyDB().get_serialized("company_employees", {})
+        employees_setting = MongoDB().get("company_employees", {})
 
         for employee in company_data:
 
@@ -112,11 +112,11 @@ class Company(Command):
         ## Get the employee id
         employee_id = cls.cleanup[-2].text.split(" ")[-1]
 
-        employees_setting = ValkeyDB().get_serialized("company_employees", {})
+        employees_setting = MongoDB().get("company_employees", {})
 
         employees_setting[employee_id] = preference
 
-        ValkeyDB().set_serialized("company_employees", employees_setting)
+        MongoDB().set("company_employees", employees_setting)
 
         if cls.main_message.reply_markup != await cls.generate_training_keyboard(context):
             await cls.main_message.edit_reply_markup(reply_markup=await cls.generate_training_keyboard(context))

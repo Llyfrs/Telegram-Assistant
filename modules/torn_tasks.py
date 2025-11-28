@@ -6,7 +6,7 @@ from typing import Any, Dict, List
 import telegram
 import telegramify_markdown
 
-from modules.database import ValkeyDB
+from modules.database import MongoDB
 from modules.torn import Torn, logg_error
 
 
@@ -95,7 +95,7 @@ async def send_train_status(torn: Torn) -> None:
         await torn.send("No employees found to train")
         return
 
-    order: List[str] = ValkeyDB().get_serialized("last_employee_trained", [])
+    order: List[str] = MongoDB().get("last_employee_trained", [])
 
     current_employee_ids = list(employees.keys())
     for employee_id, data in employees.items():
@@ -115,11 +115,11 @@ async def send_train_status(torn: Torn) -> None:
         return
 
     order.append(order.pop(0))
-    ValkeyDB().set_serialized("last_employee_trained", order)
+    MongoDB().set("last_employee_trained", order)
 
     next_employee = employees[order[0]]
     wage = next_employee.get("wage", 0)
-    preference = ValkeyDB().get_serialized("company_employees", {}).get(order[0], None)
+    preference = MongoDB().get("company_employees", {}).get(order[0], None)
 
     message = (
         f"You have *{trains_available} trains* available and your next employee to train is *{next_employee.get('name')}* "

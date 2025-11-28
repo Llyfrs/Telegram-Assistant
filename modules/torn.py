@@ -10,7 +10,7 @@ import inspect
 
 import telegramify_markdown
 
-from modules.database import ValkeyDB
+from modules.database import MongoDB
 
 
 def reqwest(url):
@@ -139,8 +139,8 @@ class Torn:
 
     async def get_bts(self, id):
 
-        db = ValkeyDB()
-        cache = db.get_serialized(f"bts:{id}", None)
+        db = MongoDB()
+        cache = db.get(f"bts:{id}", None)
 
         if cache is not None:
             return cache
@@ -154,7 +154,7 @@ class Torn:
             result = requests.get(url, headers=headers).json()
 
             if result.get("TargetId") is not None:
-                db.set_serialized(f"bts:{id}", result, expire=86400 * 10)
+                db.set(f"bts:{id}", result, expire=86400 * 10)
                 return result
             else:
                 logging.error(f"Unexpected response from lol-manager {result}")
