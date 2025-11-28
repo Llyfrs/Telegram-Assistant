@@ -2,7 +2,6 @@
 
 import glob
 import importlib
-import json
 import logging
 import os
 
@@ -59,14 +58,7 @@ if __name__ == '__main__':
                    .build()
                    )
 
-    creds = ValkeyDB().get(DatabaseConstants.CALENDAR_CREDS, None)
-
-    if creds is not None:
-        creds = json.loads(creds)
-
-    token = ValkeyDB().get_serialized(DatabaseConstants.CALENDAR_TOKEN, None)
-
-    application.bot_data[BotData.CALENDAR] = Calendar(creds, token)
+    application.bot_data[BotData.CALENDAR] = Calendar("service_account.json", calendar_id=os.environ.get("CALENDAR_ID"))
 
     ## loop = asyncio.get_event_loop()
     ## loop.run_until_complete(load_commands())
