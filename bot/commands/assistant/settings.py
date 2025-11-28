@@ -14,13 +14,15 @@ class SettingsState:
 class SettingsKey:
     DEBUG = "debug"
     RETRIEVAL = "retrieval"
+    TRACK_BOUNTIES = "track_bounties"
     CANCEL = "cancel"
 
 
 # Define all settings and their display names
 SETTINGS = [
     ("Debug", SettingsKey.DEBUG),
-    ("Retrieval", SettingsKey.RETRIEVAL)
+    ("Retrieval", SettingsKey.RETRIEVAL),
+    ("Track Bounties", SettingsKey.TRACK_BOUNTIES)
 ]
 
 

@@ -5,6 +5,7 @@ from telegram.ext import ContextTypes
 
 from bot.classes.watcher import Watcher
 from enums.bot_data import BotData
+from modules.database import MongoDB
 from modules.torn import Torn
 from modules.torn_tasks import get_valid_bounties, watch_player_bounty
 
@@ -14,6 +15,10 @@ class TornBountyWatcher(Watcher):
 
     @classmethod
     async def job(cls, context: ContextTypes.DEFAULT_TYPE) -> None:
+        db = MongoDB()
+        if not db.get("track_bounties", False):
+            return
+
         torn = context.application.bot_data.get(BotData.TORN)
         if torn is None:
             logging.warning("Torn instance not available for bounty watcher")
