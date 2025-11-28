@@ -11,6 +11,7 @@ import inspect
 import telegramify_markdown
 
 from modules.database import MongoDB
+from structures.bts_cache import BattleStatsCache
 
 
 def reqwest(url):
@@ -139,11 +140,9 @@ class Torn:
 
     async def get_bts(self, id):
 
-        db = MongoDB()
-        cache = db.get(f"bts:{id}", None)
-
-        if cache is not None:
-            return cache
+        cached = BattleStatsCache.get_cached(target_id=id)
+        if cached is not None:
+            return cached
 
         url = f'http://www.lol-manager.com/api/battlestats/{self.api_key}/{id}/9.0.5'
         headers = {
@@ -154,7 +153,7 @@ class Torn:
             result = requests.get(url, headers=headers).json()
 
             if result.get("TargetId") is not None:
-                db.set(f"bts:{id}", result, expire=86400 * 10)
+                BattleStatsCache.set_cached(target_id=id, data=result, expire_days=10)
                 return result
             else:
                 logging.error(f"Unexpected response from lol-manager {result}")

@@ -16,7 +16,8 @@ from agents.main_agent import initialize_main_agent
 from bot.classes.CustomeAplicationBuilder import CustomApplicationBuilder
 from enums.database import DatabaseConstants
 from modules.calendar import Calendar
-from modules.database import MongoDB
+from modules.database import MongoDB, Document
+import structures  # Import triggers Document subclass registration
 from modules.location_manager import LocationManager
 from modules.memory import Memory
 
@@ -68,6 +69,9 @@ if __name__ == '__main__':
     application.bot_data[BotData.FILE_MANAGER] = init_file_manager()
 
 
+
+    # Initialize MongoDB indexes for all Document subclasses
+    Document.ensure_all_indexes()
 
     chat_id = MongoDB().get(DatabaseConstants.MAIN_CHAT_ID, None)
 

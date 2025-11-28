@@ -23,6 +23,7 @@ from modules.file_system import DiskFileSystem
 from modules.location_manager import LocationManager
 from modules.memory import Memory
 from modules.reminder import seconds_until, calculate_seconds, Reminders
+from modules.time_capsule import create_capsule
 
 
 logger = logging.getLogger(__name__)
@@ -351,7 +352,21 @@ def initialize_main_agent(application: Application):
 
         return "Message sent to Telegram."
 
+    def create_time_capsule(message: str, deliver_in_days: int) -> str:
+        """Create a time capsule message to be delivered in the future."""
+        chat_id = MongoDB().get(DatabaseConstants.MAIN_CHAT_ID, None)
 
+        if chat_id is None:
+            return "Error: Main chat ID is not configured."
+
+        if isinstance(chat_id, str):
+            try:
+                chat_id = int(chat_id)
+            except ValueError:
+                return "Error: Invalid chat ID configuration."
+
+        result = create_capsule(message=message, deliver_in_days=deliver_in_days, chat_id=chat_id)
+        return f"Time capsule created! It will be delivered on {result['delivery_date']} ({result['days_until_delivery']} days from now)."
 
     main_agent = Agent(
         name="Main Agent",
@@ -446,6 +461,16 @@ def initialize_main_agent(application: Application):
                 name="search_file_system",
                 description="Returns the current state of the file system.",
                 function=file_manager.search
+            ),
+            ## Time Capsule
+            Tool(
+                name="create_time_capsule",
+                description="Creates a time capsule - a message to the user's future self. "
+                "Use this when the user wants to send a message, reminder, or note to themselves "
+                "at a future date (weeks, months, or even years ahead). "
+                "Unlike reminders which are task-oriented, time capsules are reflective messages "
+                "that will be delivered with distinctive formatting.",
+                function=create_time_capsule
             ),
 
         ],

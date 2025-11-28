@@ -211,6 +211,23 @@ class Document(BaseModel):
         arbitrary_types_allowed=True,
     )
 
+    _registry: ClassVar[list[type["Document"]]] = []
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        Document._registry.append(cls)
+
+    @classmethod
+    def ensure_indexes(cls):
+        """Override in subclasses to define indexes."""
+        pass
+
+    @classmethod
+    def ensure_all_indexes(cls):
+        """Initialize indexes for all registered Document subclasses."""
+        for doc_class in Document._registry:
+            doc_class.ensure_indexes()
+
     @classmethod
     def _get_collection_name(cls) -> str:
         """Get collection name from model_config or use class name."""
