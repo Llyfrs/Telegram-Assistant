@@ -9,3 +9,5 @@ credentials.json
 __pycache__
 .env
 /.vscode/
+/storage/
+/service_account.json

@@ -28,7 +28,7 @@ from modules.reminder import seconds_until, calculate_seconds, Reminders
 logger = logging.getLogger(__name__)
 
 
-use_openAI = False
+use_openAI = True
 
 model_settings = None
 
@@ -46,7 +46,10 @@ if use_openAI:
     model = OpenAIResponsesModel('gpt-5.1', provider=provider)
 else:
     provider = OpenRouterProvider(api_key=os.getenv("OPENROUTER_API_KEY"))
-    model = OpenAIModel('google/gemini-3-pro-preview', provider=provider, request_parameters={'extra_body': {'include_reasoning': True}})
+    model = OpenAIModel('google/gemini-3-pro-preview', provider=provider)
+    # include_reasoning: True causes "missing thought_signature" errors with Gemini on OpenRouter
+    # because pydantic-ai does not yet preserve these vendor-specific tokens in the conversation history.
+    # model_settings = OpenAIResponsesModelSettings(extra_body={'include_reasoning': True})
 
 
 def main_agent_system_prompt() -> str:
