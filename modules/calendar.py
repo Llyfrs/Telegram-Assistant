@@ -1,75 +1,29 @@
-import json
 from datetime import datetime, timedelta
 
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
+from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
-
-from enums.database import DatabaseConstants
-from modules.database import ValkeyDB
 
 
 class Calendar:
 
-    def __init__(self, credentials, token=None):
+    SCOPES = ['https://www.googleapis.com/auth/calendar']
 
-
-        self.credentials = credentials
-        self.token = token
-        self.SCOPES = ['https://www.googleapis.com/auth/calendar']
-
-        pass
-
-    def get_auth_link(self):
-
-        flow = InstalledAppFlow.from_client_config(
-            self.credentials,
-            self.SCOPES,
-            redirect_uri='urn:ietf:wg:oauth:2.0:oob'  # Enables manual code copy
+    def __init__(self, service_account_file: str, calendar_id: str = 'primary'):
+        self.calendar_id = calendar_id
+        self.credentials = Credentials.from_service_account_file(
+            service_account_file,
+            scopes=self.SCOPES
         )
-
-        auth_url, _ = flow.authorization_url(
-            prompt='consent',
-            access_type='offline',
-        )
-        return auth_url
-
-    def exchange_code(self, code):
-
-        flow = InstalledAppFlow.from_client_config(
-            self.credentials,
-            self.SCOPES,
-            redirect_uri='urn:ietf:wg:oauth:2.0:oob'
-        )
-
-        flow.fetch_token(code=code)
-        return flow.credentials
-
-
-    def is_token_valid(self):
-        if not self.token or not self.token.valid:
-            return self.refresh_token()
-        return True
-
-    def refresh_token(self):
-        if self.token and self.token.expired and self.token.refresh_token:
-            try:
-                self.token.refresh(Request())
-                return True
-            except Exception as e:
-                print(f"Token refresh failed: {e}")
-                return False
-        return False
 
     ## https://developers.google.com/calendar/api/v3/reference/events/list
     def get_events(self, max_results=10):
 
         try:
-            service = build('calendar', 'v3', credentials=self.token)
+            service = build('calendar', 'v3', credentials=self.credentials)
 
             # Call the Calendar API
             now = datetime.utcnow().isoformat() + 'Z'
-            events_result = service.events().list(calendarId='primary', timeMin=now,
+            events_result = service.events().list(calendarId=self.calendar_id, timeMin=now,
                                                   maxResults=max_results, singleEvents=True,
                                                   orderBy='startTime').execute()
 
@@ -81,9 +35,9 @@ class Calendar:
             print(f"An error occurred while fetching events: {e}")
             return []
 
-        ## https://developers.google.com/calendar/api/v3/reference/events/insert
-    def add_event(self, start: datetime, end :datetime, summary, description=None, location=None, all_day=False):
-        service = build('calendar', 'v3', credentials=self.token)
+    ## https://developers.google.com/calendar/api/v3/reference/events/insert
+    def add_event(self, start: datetime, end: datetime, summary, description=None, location=None, all_day=False):
+        service = build('calendar', 'v3', credentials=self.credentials)
 
         timezone = "Europe/Prague"
 
@@ -109,8 +63,8 @@ class Calendar:
                 }
             else:
                 event['end'] = {
-                'date': start.date().isoformat(),
-            }
+                    'date': start.date().isoformat(),
+                }
 
         else:
             event['start'] = {
@@ -123,46 +77,34 @@ class Calendar:
                     'dateTime': end.isoformat(),
                     'timeZone': timezone
                 }
-            else : ## Hour afte start
+            else:  ## Hour after start
                 start = start + timedelta(hours=1)
                 event['end'] = {
                     'dateTime': start.isoformat(),
                     'timeZone': timezone
                 }
 
-        service.events().insert(calendarId='primary', body=event).execute()
+        service.events().insert(calendarId=self.calendar_id, body=event).execute()
 
+
+    def list_calendars(self):
+        """List all calendars the service account has access to."""
+        try:
+            service = build('calendar', 'v3', credentials=self.credentials)
+            calendar_list = service.calendarList().list().execute()
+            return calendar_list.get('items', [])
+        except Exception as e:
+            print(f"An error occurred while listing calendars: {e}")
+            return []
 
 
 if __name__ == "__main__":
+    calendar = Calendar("service_account.json")
 
-    with open("modules/credentials.json", "r") as file:
-        data = file.read()
-        ValkeyDB().set(DatabaseConstants.CALENDAR_CREDS, data)
-
-
-    creds = ValkeyDB().get(DatabaseConstants.CALENDAR_CREDS)
-    creds = json.loads(creds)
-
-    callendar = Calendar(creds)
-    print(callendar.get_auth_link())
-
-    code = input("Enter code: ")
-
-    token = callendar.exchange_code(code)
-
-    callendar.token = token
-
-    ValkeyDB().set_serialized(DatabaseConstants.CALENDAR_TOKEN, token)
-
-    events = callendar.get_events()
-
-    for event in events:
-
-        print(event)
-
-        print(event['summary'])
-        print(event['start']['date'])
-        print(event['end']['date'])
-        print()
-
+    print("Available calendars:")
+    print("-" * 50)
+    for cal in calendar.list_calendars():
+        print(f"Name: {cal.get('summary')}")
+        print(f"ID: {cal.get('id')}")
+        print(f"Access: {cal.get('accessRole')}")
+        print("-" * 50)
