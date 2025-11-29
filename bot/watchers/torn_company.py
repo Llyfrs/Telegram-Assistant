@@ -1,4 +1,3 @@
-import logging
 from datetime import datetime, time, timedelta
 from typing import Optional
 
@@ -9,6 +8,9 @@ from bot.classes.watcher import Watcher
 from enums.bot_data import BotData
 from modules.torn import Torn
 from modules.torn_tasks import send_stock_report, send_train_status
+from utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def _seconds_until(target: time, tz) -> float:
@@ -41,7 +43,7 @@ class _DailyTornWatcher(Watcher):
     def _get_torn(cls, context: ContextTypes.DEFAULT_TYPE) -> Optional[Torn]:
         torn = context.application.bot_data.get(BotData.TORN)
         if torn is None:
-            logging.warning("Torn instance not available for watcher %s", cls.__name__)
+            logger.warning("Torn instance not available for watcher %s", cls.__name__)
         return torn
 
 
@@ -55,7 +57,7 @@ class TornCompanyUpdateWatcher(_DailyTornWatcher):
             return
 
         await torn.update_company()
-        logging.info("Company data updated by watcher")
+        logger.info("Company data updated by watcher")
 
 
 class TornStockWatcher(_DailyTornWatcher):

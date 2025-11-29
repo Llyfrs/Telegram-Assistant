@@ -1,7 +1,9 @@
-import logging
-
 import telegram
 import telegramify_markdown
+
+from utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class Bot:
@@ -41,14 +43,14 @@ class Bot:
                             message_id=previous_message.message_id,
                         )
                 except Exception as e:
-                    logging.error(f"Failed to clean last message: {e} in message: {text}")
+                    logger.error("Failed to clean last message: %s", e)
 
                 self.last_messages[caller_id] = message
 
             return message
 
         except Exception as exc:
-            logging.error(f"Error sending message: {exc} with text: {text}")
+            logger.error("Error sending message: %s", exc)
 
 
     async def edit(self, message, text, markdown=True):
@@ -66,4 +68,4 @@ class Bot:
             return message
 
         except Exception as exc:
-            logging.error(f"Error editing message: {exc}")
+            logger.error("Error editing message: %s", exc)

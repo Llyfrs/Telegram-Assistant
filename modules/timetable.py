@@ -1,7 +1,9 @@
-import logging
 from datetime import datetime
 
 from modules.database import MongoDB
+from utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class TimeTable:
@@ -10,7 +12,7 @@ class TimeTable:
         self.timezone : datetime.tzinfo  = timezone
         self.timetable = self.db.get("timetable", {})
 
-        logging.info(f"TimeTable: {self.timetable}")
+        logger.debug("TimeTable loaded: %s", self.timetable)
 
 
     def add(self, start, end, course, location, day):

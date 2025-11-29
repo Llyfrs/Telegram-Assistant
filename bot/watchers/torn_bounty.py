@@ -1,4 +1,3 @@
-import logging
 from typing import Any, Dict, List, Tuple
 
 from telegram.ext import ContextTypes
@@ -8,6 +7,9 @@ from enums.bot_data import BotData
 from modules.database import MongoDB
 from modules.torn import Torn
 from modules.torn_tasks import get_valid_bounties, watch_player_bounty
+from utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class TornBountyWatcher(Watcher):
@@ -21,7 +23,7 @@ class TornBountyWatcher(Watcher):
 
         torn = context.application.bot_data.get(BotData.TORN)
         if torn is None:
-            logging.warning("Torn instance not available for bounty watcher")
+            logger.warning("Torn instance not available for bounty watcher")
             return
 
         monitor = await get_valid_bounties(torn, 1_000_000)
@@ -41,7 +43,7 @@ class TornBountyWatcher(Watcher):
         torn.discovered_bounties = update_discovered
 
         for bounty in new_bounties:
-            logging.info(
+            logger.info(
                 "New bounty found: %s with $%s, scheduling watcher",
                 bounty.get('name'),
                 bounty.get('reward')

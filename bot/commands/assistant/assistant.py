@@ -1,10 +1,12 @@
 import datetime
-import logging
 
 import pytz
 
 
 from pydantic_ai import Agent, ImageUrl, AudioUrl
+from utils.logging import get_logger
+
+logger = get_logger(__name__)
 from pydantic_ai.messages import ToolReturnPart, ToolCallPart, TextPart
 from telegram import Update
 from telegram.constants import ChatAction
@@ -32,7 +34,7 @@ def get_current_time():
     current_time_and_date = datetime.datetime.now(cet)
     current_time_and_date = current_time_and_date.strftime("%H:%M:%S %d/%m/%Y")
 
-    print("Returning time: " + str(current_time_and_date))
+    logger.debug("Returning time: %s", current_time_and_date)
     return {"current_time": current_time_and_date}
 
 
@@ -48,7 +50,7 @@ class Assistant(Command):
     @classmethod
     async def handle(cls, update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-        print("Handling message in Assistant command")
+        logger.debug("Handling message in Assistant command")
 
         main_agent : Agent = context.bot_data[BotData.MAIN_AGENT]
         reminder : Reminders = context.bot_data[BotData.REMINDER]
@@ -62,7 +64,7 @@ class Assistant(Command):
         ## Change status to typing
         await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
 
-        print(update)
+        logger.debug("Update: %s", update)
 
         ## This whole think is broken as if you send more that one image they all get registered as a separate message
         photos = []
@@ -76,7 +78,7 @@ class Assistant(Command):
             audio = update.message.voice
             file = await context.bot.get_file(audio.file_id)
             audio_url = file.file_path
-            print(audio_url)
+            logger.debug("Audio URL: %s", audio_url)
 
         # HH:MM format
         time_text = update.message.date.strftime("%H:%M")
@@ -94,11 +96,11 @@ class Assistant(Command):
             composed_text = f"Send at {time_text}: (no text provided)\n\n{direct_request_note}"
 
         if photos:
-            logging.info(f"User sent {len(photos)} photos")
+            logger.info("User sent %d photos", len(photos))
             composed_text += "\n\nAttachment: Photo provided with the message."
 
         if audio_url is not None:
-            logging.info("User sent a voice message")
+            logger.info("User sent a voice message")
             composed_text += "\n\nAttachment: Voice message provided with the message."
 
         message_parts = [composed_text]
@@ -121,7 +123,7 @@ class Assistant(Command):
         tool_calls = {}
         bot_output = ""
         for msg in response.new_messages():
-            print(msg)
+            logger.debug("Message: %s", msg)
             parts = msg.parts
             for part in parts:
                 if isinstance(part, ToolCallPart):
@@ -160,4 +162,4 @@ class Assistant(Command):
             await bot.send(f"Generated: `{bot_output}`")
 
         if not any(call.get("name") == "send_telegram_message" for call in tool_calls.values()):
-            logging.warning("Direct Telegram request completed without calling send_telegram_message.")
+            logger.warning("Direct Telegram request completed without calling send_telegram_message.")

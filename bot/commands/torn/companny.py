@@ -1,4 +1,3 @@
-import logging
 from typing import List
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, Message
@@ -9,6 +8,9 @@ from bot.classes.command import Command
 from bot.commands.time_table.time_table import cancel
 from modules.database import MongoDB
 from modules.torn import Torn
+from utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class CompanyState:
@@ -134,7 +136,7 @@ class Company(Command):
     @classmethod
     def handler(cls, app: Application) -> None:
 
-        logging.info("Company command handler")
+        logger.debug("Company command handler registered")
 
         app.add_handler(
             ConversationHandler(

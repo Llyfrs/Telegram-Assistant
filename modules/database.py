@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import fnmatch
-import logging
 import os
 from datetime import datetime, timedelta
 from typing import Any, ClassVar, Self
@@ -11,6 +10,10 @@ from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.database import Database
 from pymongo.errors import ConnectionFailure
+
+from utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class _InMemoryMongo:
@@ -107,7 +110,7 @@ class MongoDB:
         mongo_uri = os.getenv("MONGODB_URI")
 
         if not mongo_uri:
-            logging.warning("MONGODB_URI not provided. Using in-memory database fallback.")
+            logger.warning("MONGODB_URI not provided. Using in-memory database fallback.")
             fallback = _InMemoryMongo()
             return fallback, fallback
 
@@ -116,10 +119,10 @@ class MongoDB:
             client.admin.command("ping")
             db_name = os.getenv("MONGODB_DATABASE", "telegram_assistant")
             db = client[db_name]
-            logging.info(f"Connected to MongoDB database: {db_name}")
+            logger.info("Connected to MongoDB database: %s", db_name)
             return client, db
         except ConnectionFailure as error:
-            logging.warning(
+            logger.warning(
                 "Failed to connect to MongoDB at %s (%s). Falling back to in-memory storage.",
                 mongo_uri,
                 error,

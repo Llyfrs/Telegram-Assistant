@@ -6,6 +6,9 @@ from telegram.ext import MessageHandler, filters, ContextTypes
 from bot.classes.command import Command
 from enums.bot_data import BotData
 from modules.memory import Memory
+from utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 TEXT_MIME_TYPES = {
     "text/plain",
@@ -32,13 +35,13 @@ class FileUploader(Command):
         memory : Memory = context.bot_data.get(BotData.MEMORY, None)
 
         if not update.message or not update.message.document:
-            print("No document in message.")
+            logger.debug("No document in message")
             return
 
         doc: Document = update.message.document
         mime = doc.mime_type
         file_id = doc.file_id
-        print(f"Received document: {doc.file_name} ({mime})")
+        logger.info("Received document: %s (%s)", doc.file_name, mime)
 
         if mime not in TEXT_MIME_TYPES:
             await update.message.reply_text(
@@ -72,4 +75,4 @@ class FileUploader(Command):
             await update.message.reply_text("File content added to memory. Might take a while to process.")
 
         except UnicodeDecodeError:
-            print("Could not decode file as UTF-8.")
+            logger.warning("Could not decode file as UTF-8")

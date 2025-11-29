@@ -1,10 +1,12 @@
 import asyncio
-import logging
 
 from telegram.ext import Application, ApplicationBuilder
 
 from bot.classes.command import Command
 from bot.classes.watcher import Watcher
+from utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class CustomApplicationBuilder(ApplicationBuilder):
@@ -18,7 +20,7 @@ class CustomApplicationBuilder(ApplicationBuilder):
 
         for name, cmd_cls in commands:
 
-            logging.info(f"Registering command: {name}")
+            logger.debug("Registering command: %s", name)
 
             cmd_cls.handler(app)
             if issubclass(cmd_cls, Command) and cmd_cls.register:
@@ -26,7 +28,7 @@ class CustomApplicationBuilder(ApplicationBuilder):
 
         # Set bot commands in Telegram UI
         if command_list:
-            logging.info(f"Setting commands: {command_list}")
+            logger.debug("Setting commands: %s", command_list)
             loop = asyncio.get_event_loop()
             loop.run_until_complete(app.bot.set_my_commands(command_list))
 
@@ -36,6 +38,6 @@ class CustomApplicationBuilder(ApplicationBuilder):
 
 
 
-        logging.info("CustomApplicationBuilder: Done")
+        logger.info("Application built and configured")
 
         return app

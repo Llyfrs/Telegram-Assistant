@@ -1,4 +1,3 @@
-import logging
 import os
 from typing import Optional
 
@@ -8,7 +7,9 @@ from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.providers.openrouter import OpenRouterProvider
 
-logger = logging.getLogger(__name__)
+from utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 MAIN_AGENT_SYSTEM_PROMPT = """
 Summarize the email (in its original language) as concisely as possible. The summary should give an overview, not include all details, but any important urls or links should be included.

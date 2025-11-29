@@ -1,5 +1,8 @@
-import logging
 from modules.database import MongoDB
+from utils.logging import get_logger
+
+logger = get_logger(__name__)
+
 
 class Settings:
 
@@ -15,7 +18,7 @@ class Settings:
             settings = self.db.get("settings")
 
         except Exception as exc:
-            logging.error(f"Error loading settings: {exc}")
+            logger.error("Error loading settings: %s", exc)
             self.settings = {
                 "retrieval": False,  # This will enable the retrieval tool and switch mode to GPT4
                 "debug": False,
@@ -26,7 +29,7 @@ class Settings:
             self.db.set("settings", self.settings)
 
         except Exception as exc:
-            logging.error(f"Error saving settings: {exc}")
+            logger.error("Error saving settings: %s", exc)
 
     def get_setting(self, setting: str):
         if setting in self.settings:

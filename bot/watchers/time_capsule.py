@@ -1,6 +1,5 @@
 """Time Capsule watcher - delivers capsules when their time has come."""
 
-import logging
 from datetime import datetime
 
 from telegram.ext import ContextTypes
@@ -8,8 +7,9 @@ from telegramify_markdown import markdownify
 
 from bot.classes.watcher import run_repeated
 from modules.time_capsule import get_pending_capsules, mark_as_sent
+from utils.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def format_capsule_message(message: str, created_at: datetime) -> str:
@@ -57,7 +57,7 @@ async def time_capsule_delivery(context: ContextTypes.DEFAULT_TYPE):
     if not pending:
         return
     
-    logger.info(f"Delivering {len(pending)} time capsule(s)")
+    logger.info("Delivering %d time capsule(s)", len(pending))
     
     for capsule in pending:
         try:
@@ -73,8 +73,8 @@ async def time_capsule_delivery(context: ContextTypes.DEFAULT_TYPE):
             )
             
             mark_as_sent(capsule.capsule_id)
-            logger.info(f"Delivered time capsule {capsule.capsule_id}")
+            logger.info("Delivered time capsule %s", capsule.capsule_id)
             
         except Exception as exc:
-            logger.error(f"Failed to deliver time capsule {capsule.capsule_id}: {exc}")
+            logger.error("Failed to deliver time capsule %s: %s", capsule.capsule_id, exc)
 

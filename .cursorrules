@@ -1,0 +1,19 @@
+# Logging
+
+Use the centralized logging from `utils/logging`:
+
+```python
+from utils.logging import get_logger
+
+logger = get_logger(__name__)
+
+logger.info("Message with %s", variable)    # General status
+logger.debug("Details: %s", data)           # Verbose debugging  
+logger.warning("Potential issue: %s", msg)  # Something to watch
+logger.error("Failed: %s", error)           # Something went wrong
+```
+
+- Always use `get_logger(__name__)` at module level
+- Use `%s` formatting, not f-strings (for lazy evaluation)
+- No `print()` statements - use `logger.debug()` instead
+

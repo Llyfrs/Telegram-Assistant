@@ -1,5 +1,4 @@
 import asyncio
-import logging
 import re
 import time
 from typing import Any, Dict, Optional
@@ -12,6 +11,9 @@ import telegramify_markdown
 
 from modules.database import MongoDB
 from structures.bts_cache import BattleStatsCache
+from utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def reqwest(url):
@@ -28,7 +30,7 @@ def logg_error(function):
         try:
             return await function(*args, **kwargs)
         except Exception as e:
-            logging.error(f"Failed to run {function.__name__}: {e}")
+            logger.error("Failed to run %s: %s", function.__name__, e)
             return None
 
     return wrapper
@@ -62,7 +64,7 @@ class Torn:
         try:
             return await self.bot.send_message(chat_id=self.chat_id, text=text, parse_mode="html")
         except Exception as e:
-            logging.error(f"Failed to send html message: {e} in message: {text}")
+            logger.error("Failed to send html message: %s in message: %s", e, text)
 
     async def clear(self):
         caller = inspect.stack()[1].function
@@ -82,13 +84,13 @@ class Torn:
                         message_id=self.last_messages[inspect.stack()[1].function].message_id
                     )
             except Exception as e:
-                logging.error(f"Failed to clean last message: {e} in message: {text}")
+                logger.error("Failed to clean last message: %s in message: %s", e, text)
 
             self.last_messages[inspect.stack()[1].function] = message
             return message
 
         except Exception as e:
-            logging.error(f"Failed to send message: {e} in message: {text}")
+            logger.error("Failed to send message: %s in message: %s", e, text)
 
     async def get(self, url: str):
 
@@ -103,7 +105,7 @@ class Torn:
             if response.get("error").get("code") != 5:
 
                 await self.send("Torn API error: {0}".format(response.get("error").get("error")))
-                logging.error("Torn API error: {0}".format(response.get("error").get("error")))
+                logger.error("Torn API error: %s", response.get("error").get("error"))
 
                 break
 
@@ -156,17 +158,17 @@ class Torn:
                 BattleStatsCache.set_cached(target_id=id, data=result, expire_days=10)
                 return result
             else:
-                logging.error(f"Unexpected response from lol-manager {result}")
+                logger.error("Unexpected response from lol-manager: %s", result)
                 return None
         except Exception as e:
-            logging.error(f"Failed to get bts data: {e}")
+            logger.error("Failed to get bts data: %s", e)
 
     async def update_user(self):
 
         try:
             self.user = await self.get_user()
         except Exception as e:
-            logging.error(f"Failed to get user data: {e}")
+            logger.error("Failed to get user data: %s", e)
             return
 
     async def update_company(self):
@@ -174,10 +176,10 @@ class Torn:
         try:
             self.company = await self.get_company()
         except Exception as e:
-            logging.error(f"Failed to get company data: {e}")
+            logger.error("Failed to get company data: %s", e)
 
     async def update_bounties(self):
         try:
             self.bounties = await self.get_bounties()
         except Exception as e:
-            logging.error(f"Failed to get bounties data: {e}")
+            logger.error("Failed to get bounties data: %s", e)

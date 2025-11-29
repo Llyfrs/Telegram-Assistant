@@ -5,6 +5,9 @@ This file is containing tools that I use around the bot, it helps me keep the co
 import re
 
 from modules.file_system import DiskFileSystem
+from utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def escape_chars(match):
@@ -32,7 +35,7 @@ def debug(steps):
 
     for step in data:
 
-        print(step)
+        logger.debug("Processing step: %s", step)
 
         if step.type == "message_creation":
             continue
@@ -40,7 +43,7 @@ def debug(steps):
         if step.type == "tool_calls":
 
             for tool_call in step.step_details.tool_calls:
-                print(tool_call)
+                logger.debug("Tool call: %s", tool_call)
                 if tool_call.type == "function":
                     debug_messages[message_index] += re.sub(r"[_*()\[\]~`>#+\-=|{}.!\\]", escape_chars,
                                                             f"{tool_call.function.name}( {tool_call.function.arguments}) => {tool_call.function.output}) \n")

@@ -3,6 +3,10 @@ from datetime import datetime, timedelta
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 
+from utils.logging import get_logger
+
+logger = get_logger(__name__)
+
 
 class Calendar:
 
@@ -32,7 +36,7 @@ class Calendar:
             return events
 
         except Exception as e:
-            print(f"An error occurred while fetching events: {e}")
+            logger.error("An error occurred while fetching events: %s", e)
             return []
 
     ## https://developers.google.com/calendar/api/v3/reference/events/insert
@@ -94,17 +98,20 @@ class Calendar:
             calendar_list = service.calendarList().list().execute()
             return calendar_list.get('items', [])
         except Exception as e:
-            print(f"An error occurred while listing calendars: {e}")
+            logger.error("An error occurred while listing calendars: %s", e)
             return []
 
 
 if __name__ == "__main__":
+    from utils.logging import setup_logging
+    setup_logging()
+    
     calendar = Calendar("service_account.json")
 
-    print("Available calendars:")
-    print("-" * 50)
+    logger.info("Available calendars:")
+    logger.info("-" * 50)
     for cal in calendar.list_calendars():
-        print(f"Name: {cal.get('summary')}")
-        print(f"ID: {cal.get('id')}")
-        print(f"Access: {cal.get('accessRole')}")
-        print("-" * 50)
+        logger.info("Name: %s", cal.get('summary'))
+        logger.info("ID: %s", cal.get('id'))
+        logger.info("Access: %s", cal.get('accessRole'))
+        logger.info("-" * 50)

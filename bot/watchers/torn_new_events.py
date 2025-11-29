@@ -1,12 +1,10 @@
-import logging
-
 from telegram.ext import ContextTypes
 from bot.classes.watcher import run_repeated
 from enums.bot_data import BotData
 from modules.torn import Torn, remove_between_angle_brackets
+from utils.logging import get_logger
 
-
-# TODO: Loogging
+logger = get_logger(__name__)
 @run_repeated(interval=30)
 async def torn_new_events(context: ContextTypes.DEFAULT_TYPE):
 
@@ -28,7 +26,7 @@ async def torn_new_events(context: ContextTypes.DEFAULT_TYPE):
             events.append(remove_between_angle_brackets(newevents[event_id].get("event")))
 
     if len(events) > 0:
-        logging.info("New event found, sending alert")
+        logger.info("New event found, sending alert")
         await torn.send("*Events*\n\n" + "\n".join(events), clean=False)
 
     pass

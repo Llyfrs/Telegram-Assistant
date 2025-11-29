@@ -1,5 +1,3 @@
-import logging
-
 from telegram import Update, Location
 from telegram.ext import Application, MessageHandler, filters, ContextTypes, ConversationHandler, CommandHandler
 
@@ -7,8 +5,9 @@ from bot.classes.command import Command
 from bot.commands.time_table.time_table import cancel
 from enums.bot_data import BotData
 from modules.location_manager import LocationManager
+from utils.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 COLLECT_LOCATION_NAME, COLLECT_LOCATION_RADIUS, COLLECT_LOCATION_DESCRIPTION = range(3)
 
@@ -47,14 +46,14 @@ class LocationRecorder(Command):
 
         if update.edited_message:
 
-            print("Live Location Update received")
+            logger.debug("Live Location Update received")
             loc = update.edited_message.location
             location.record_live_location(loc.latitude, loc.longitude)
 
             pass
 
         if update.message and update.message.location.live_period is None:
-            print("Manual location received")
+            logger.debug("Manual location received")
             await update.message.reply_text(
                 "Please provide a name for this location (e.g. 'Home', 'Work', etc.):"
             )

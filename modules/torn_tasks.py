@@ -1,5 +1,4 @@
 import asyncio
-import logging
 import time
 from typing import Any, Dict, List
 
@@ -8,6 +7,9 @@ import telegramify_markdown
 
 from modules.database import MongoDB
 from modules.torn import Torn, logg_error
+from utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 @logg_error
@@ -16,7 +18,7 @@ async def send_stock_report(torn: Torn) -> None:
         await torn.update_company()
 
     if not torn.company:
-        logging.error("Company data is unavailable for stock report")
+        logger.error("Company data is unavailable for stock report")
         return
 
     company_stock = torn.company.get("company_stock", {})
@@ -25,18 +27,18 @@ async def send_stock_report(torn: Torn) -> None:
 
     storage_space = upgrades.get("storage_space")
     if storage_space is None:
-        logging.error("Storage space information missing from company data")
+        logger.error("Storage space information missing from company data")
         return
 
     try:
         total_sold = sum(float(v.get("sold_amount", 0)) for v in company_stock.values())
         total_in_stock = sum(float(v.get("in_stock", 0)) + float(v.get("on_order", 0)) for v in company_stock.values())
     except (TypeError, ValueError) as exc:
-        logging.error(f"Failed to aggregate company stock data: {exc}")
+        logger.error("Failed to aggregate company stock data: %s", exc)
         return
 
     if total_sold == 0:
-        logging.info("No products sold, skipping stock report")
+        logger.info("No products sold, skipping stock report")
         return
 
     aim_ratio = storage_space / total_sold
@@ -56,7 +58,7 @@ async def send_stock_report(torn: Torn) -> None:
         diff = aim_ratio - (in_stock / sold)
 
         if diff <= 0.0:
-            logging.debug(f"{key}: no purchase required ({in_stock / sold:.2f})")
+            logger.debug("%s: no purchase required (%.2f)", key, in_stock / sold)
             continue
 
         buy = diff * sold
@@ -85,13 +87,13 @@ async def send_train_status(torn: Torn) -> None:
     trains_available = detailed.get("trains_available", 0)
 
     if trains_available == 0:
-        logging.info("No trains available")
+        logger.info("No trains available")
         await torn.send("You have no trains available, you can't train anyone")
         return
 
     employees = company.get("company_employees", {})
     if not employees:
-        logging.info("No employees in company data")
+        logger.info("No employees in company data")
         await torn.send("No employees found to train")
         return
 
@@ -130,8 +132,8 @@ async def send_train_status(torn: Torn) -> None:
     if preference is not None:
         message += f"\n\nPrefers: *{preference}*"
 
-    logging.info(
-        f"Trains available: {trains_available}, next employee: {next_employee.get('name')}"
+    logger.info(
+        "Trains available: %s, next employee: %s", trains_available, next_employee.get('name')
     )
 
     await torn.send(message)
@@ -141,14 +143,14 @@ async def get_valid_bounties(torn: Torn, min_money: int) -> List[Dict[str, Any]]
     await torn.update_bounties()
 
     if torn.bounties is None:
-        logging.error("Failed to retrieve bounty data")
+        logger.error("Failed to retrieve bounty data")
         return []
 
     if torn.user is None:
         await torn.update_user()
 
     if torn.user is None:
-        logging.error("User data unavailable, cannot evaluate bounties")
+        logger.error("User data unavailable, cannot evaluate bounties")
         return []
 
     monitor: List[Dict[str, Any]] = []
@@ -196,7 +198,7 @@ async def bounty_monitor(torn: Torn) -> None:
         await torn.update_user()
 
     if torn.user is None:
-        logging.error("Unable to start bounty monitor without user data")
+        logger.error("Unable to start bounty monitor without user data")
         return
 
     my_bts = torn.user.get("total", 0)
@@ -260,7 +262,7 @@ async def watch_player_bounty(torn: Torn, player_info: Dict[str, Any], limit: in
             clean=False
         )
     except Exception as exc:
-        logging.error(f"Failed to send bounty notification: {exc}")
+        logger.error("Failed to send bounty notification: %s", exc)
         return
 
     await asyncio.sleep(max(limit, 0))
@@ -268,4 +270,4 @@ async def watch_player_bounty(torn: Torn, player_info: Dict[str, Any], limit: in
     try:
         await message.delete()
     except Exception as exc:
-        logging.error(f"Failed to delete bounty notification: {exc}")
+        logger.error("Failed to delete bounty notification: %s", exc)

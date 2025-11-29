@@ -1,6 +1,5 @@
 import asyncio
 import functools
-import logging
 import os
 from datetime import datetime, timedelta, date
 from typing import Dict, Optional, Union
@@ -24,9 +23,9 @@ from modules.location_manager import LocationManager
 from modules.memory import Memory
 from modules.reminder import seconds_until, calculate_seconds, Reminders
 from modules.time_capsule import create_capsule
+from utils.logging import get_logger
 
-
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 use_openAI = True

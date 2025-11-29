@@ -2,7 +2,6 @@
 
 import glob
 import importlib
-import logging
 import os
 
 from dotenv import load_dotenv
@@ -25,8 +24,11 @@ from modules.timetable import TimeTable
 from modules.tools import init_file_manager
 from modules.torn import Torn
 from enums.bot_data import BotData
+from utils.logging import setup_logging
 
 
+# Configure logging first, before any other imports that might log
+setup_logging()
 
 ## For commands to be loaded they need to be imported
 ## You could do it by hand (import commands.command_name)
@@ -34,14 +36,6 @@ from enums.bot_data import BotData
 ## But I don't like having to go somewhere after I create command and write it, so I import anything in commands directory including subdirectories
 [importlib.import_module(os.path.relpath(f, os.getcwd()).replace(os.path.sep, ".")[:-3]) for f in
  glob.glob("bot/**/*.py", recursive=True) if os.path.basename(f) != "__init__.py"]
-
-logging.getLogger("httpx").setLevel(logging.ERROR)
-logging.getLogger("apscheduler").setLevel(logging.WARNING)
-
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
 
 chat_id = None
 ct = None

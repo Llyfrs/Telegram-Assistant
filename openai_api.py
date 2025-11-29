@@ -1,11 +1,11 @@
-import logging
 import time
 
 import openai
 
 from functions import Functions
+from utils.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class OpenAI_API:
     def __init__(self, key: str, model: str = "gpt-4o-mini"):
@@ -76,7 +76,7 @@ class OpenAI_API:
             content.append({"type": "image_url", "image_url": {"url": photo}})
 
 
-        print(str(content))
+        logger.debug("Message content: %s", content)
 
 
         message = self.client.beta.threads.messages.create(
@@ -119,21 +119,21 @@ class OpenAI_API:
             self.run = self.client.beta.threads.runs.retrieve(run_id=self.run.id, thread_id=self.thread.id)
 
             if self.run.status in ["failed", "cancelled", "expired", "incomplete"]:
-                logging.error(f"Run failed: {self.run.last_error}")
+                logger.error("Run failed: %s", self.run.last_error)
                 return
 
             if self.run.status == "requires_action":
 
                 if not self.run.required_action:
-                    logging.info("Requested action but no action was provided")
+                    logger.debug("Requested action but no action was provided")
                     time.sleep(0.5)
 
 
-                logger.info(f"Required action: {self.run.required_action}")
+                logger.debug("Required action: %s", self.run.required_action)
 
                 result = self.functions.process_required_actions(self.run.required_action)
 
-                logger.info(f"Tool outputs: {result}")
+                logger.debug("Tool outputs: %s", result)
 
 
                 self.client.beta.threads.runs.submit_tool_outputs(
@@ -144,7 +144,7 @@ class OpenAI_API:
 
 
         self.last_run_cost = self.run.usage
-        logging.info(f"Run completed with cost: {self.last_run_cost}")
+        logger.info("Run completed with cost: %s", self.last_run_cost)
 
         run_steps = self.client.beta.threads.runs.steps.list(
             thread_id=self.thread.id,

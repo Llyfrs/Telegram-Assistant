@@ -1,4 +1,3 @@
-import logging
 import re
 from datetime import datetime
 
@@ -11,6 +10,9 @@ from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, Comm
 from bot.classes.command import Command
 from enums.bot_data import BotData
 from modules.timetable import TimeTable
+from utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 CHOOSE, DAY, COURSE, ROOM , TIME_START, TIME_END, CONFIRM = range(7)
 
@@ -107,7 +109,7 @@ async def delete_course(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def day(update: Update, context: ContextTypes.DEFAULT_TYPE):
     day = update.message.text
 
-    logging.info(day)
+    logger.debug("Day selected: %s", day)
 
     if day.lower() not in ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]:
         await update.message.reply_text("Invalid day, try again or /cancel")
@@ -173,7 +175,7 @@ async def time_end(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    logging.info("Confirm")
+    logger.debug("Confirm action triggered")
 
     query = update.callback_query
     await query.answer()

@@ -3,12 +3,14 @@ Creates a self updating message that lists all the available bounties in Torn.
 """
 
 import asyncio
-import logging
 from typing import Optional
 
 from bot.classes.command import command
 from enums.bot_data import BotData
 from modules.torn_tasks import bounty_monitor
+from utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 @command
@@ -34,4 +36,4 @@ async def bounty(update, context):
         await update.message.reply_text("Bounty Monitor Started")
 
     except Exception as ex:
-        logging.error(f"Failed to get bounties {ex}")
+        logger.error("Failed to get bounties: %s", ex)

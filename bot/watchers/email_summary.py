@@ -1,5 +1,4 @@
 import datetime
-import logging
 import os
 import asyncio
 
@@ -13,10 +12,11 @@ from enums.database import DatabaseConstants
 from modules.database import MongoDB
 from modules.email import Email
 from agents.email_summary_agent import Event
+from utils.logging import get_logger
 
 from typing import Dict
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class EmailSummary(Watcher):
 
@@ -66,7 +66,7 @@ class EmailSummary(Watcher):
         summary = await cls.email.summarize_new()
 
         if len(summary) > 0:
-            logger.info(f"Processing {len(summary)} new emails")
+            logger.info("Processing %d new emails", len(summary))
 
         for e, response in summary:
 
@@ -145,7 +145,7 @@ class EmailSummary(Watcher):
         """Handle callback queries from the watcher"""
         query = update.callback_query
 
-        logger.info(f"Handling callback query: {query.data}")
+        logger.info("Handling callback query: %s", query.data)
 
         await query.answer()
 
@@ -156,7 +156,7 @@ class EmailSummary(Watcher):
         start = None if event.start is None else datetime.datetime.fromisoformat(event.start)
         end = None if event.end is None else datetime.datetime.fromisoformat(event.end)
 
-        logger.info(f'Event is all day {event.all_day}')
+        logger.info("Event is all day: %s", event.all_day)
 
         calendar.add_event(
             start=start,
@@ -187,7 +187,7 @@ class EmailSummary(Watcher):
         """Handle callback queries from the watcher"""
         query = update.callback_query
 
-        logger.info(f"Handling callback query: {query.data}")
+        logger.info("Handling callback query: %s", query.data)
 
         await query.answer()
 
@@ -203,7 +203,7 @@ class EmailSummary(Watcher):
 
 async def blocking_add_event(event: Event) -> bool:
 
-    logging.info(f"Blocking add event {event}")
+    logger.info("Blocking add event: %s", event)
 
     ## The delay hopefully makes the event confirmation message appear after the AI response, but it's not guaranteed.
     async def delayed_create_event():

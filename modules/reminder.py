@@ -2,12 +2,14 @@ import asyncio
 import datetime
 import time
 import threading
-import logging
 
 import pytz
 from telegram.ext import ContextTypes
 
 from modules.database import MongoDB
+from utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class Reminder:
@@ -26,7 +28,7 @@ class Reminder:
         try:
             await self.bot.send_message(chat_id=self.chat_id, text=self.reminder)
         except Exception as exc:
-            print(f"Error sending reminder: {exc}")
+            logger.error("Error sending reminder: %s", exc)
 
     def cancel(self):
         self.thread.cancel()
@@ -55,9 +57,7 @@ def seconds_until(target_date_str : str) -> int:
     # Calculate the time difference
     time_difference = target_date - now
 
-    print(f"Target date: {target_date}")
-    print(f"Now: {now}")
-    print(f"Time difference: {time_difference}")
+    logger.debug("Target: %s, Now: %s, Diff: %s", target_date, now, time_difference)
 
     # Return the total seconds remaining
     return int(time_difference.total_seconds())
@@ -83,8 +83,7 @@ class Reminders:
                 self.reminders.append(Reminder(reminder[0] - time.time(), reminder[2], reminder[1], bot))
 
         except Exception as exc:
-            logging.error(f"Error loading reminders: {exc}")
-            pass
+            logger.error("Error loading reminders: %s", exc)
 
     def add_reminder(self, seconds: int, reminder: str = "reminder"):
         rem = Reminder(seconds, self.chat_id, reminder, self.bot, self.loop)
@@ -93,7 +92,7 @@ class Reminders:
 
         self.db.set("reminders", self.reminder_data)
 
-        logging.info(f"[REMINDER] Reminder set for {convert_seconds_to_hms(seconds)} from now")
+        logger.info("Reminder set for %s from now", convert_seconds_to_hms(seconds))
 
         return f"Reminder set for {convert_seconds_to_hms(seconds)} from now"
 
@@ -101,7 +100,7 @@ class Reminders:
 
         self.remove_finished()
 
-        logging.info(f"[REMINDER] Getting reminders")
+        logger.debug("Getting reminders")
 
         list_string_data = []
         for i, reminder in enumerate(self.reminder_data):
@@ -113,7 +112,7 @@ class Reminders:
     def remove_reminders(self, indexes: list[int]):
         indexes.sort(reverse=True)
 
-        logging.info(f"[REMINDER] Removing reminders {indexes}")
+        logger.debug("Removing reminders at indexes: %s", indexes)
 
         for index in indexes:
             self.reminders[index].cancel()

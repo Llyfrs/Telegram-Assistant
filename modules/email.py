@@ -2,6 +2,9 @@ from imap_tools import MailBox, AND
 import os
 
 from agents.email_summary_agent import get_email_summary_agent, EmailResponse
+from utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class Email:
@@ -67,9 +70,10 @@ class Email:
 
 
 if __name__ == "__main__":
+    from utils.logging import setup_logging
+    setup_logging()
 
-
-    print(EmailResponse.model_json_schema())
+    logger.info("Schema: %s", EmailResponse.model_json_schema())
 
     email = Email(
         os.getenv("EMAIL_ADDRESS"),
@@ -84,11 +88,8 @@ if __name__ == "__main__":
     email.add_excluded_folder("trash")
     email.add_excluded_folder("Administrativa")
 
-
-
     for e, response in email.summarize_new():
-        print(f"Subject: {e.subject}")
-        print(f"Summary: {response.summary}")
-        print(f"Spam: {response.spam}")
-        print(f"Important: {response.important}")
-        print("")
+        logger.info("Subject: %s", e.subject)
+        logger.info("Summary: %s", response.summary)
+        logger.info("Spam: %s", response.spam)
+        logger.info("Important: %s", response.important)
