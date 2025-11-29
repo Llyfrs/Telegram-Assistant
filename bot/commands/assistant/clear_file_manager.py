@@ -4,7 +4,7 @@ from modules.tools import init_file_manager
 import shutil
 from pathlib import Path
 
-@command
+# @command // let's keep this disabled for safety reasons
 async def clear_files(update, context):
     """ Clears the file manager """
     # Re-initialize to ensure structure (this creates 'storage' if missing, etc)
