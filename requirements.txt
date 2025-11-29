@@ -80,6 +80,7 @@ jupyterlab_pygments==0.3.0
 logfire-api==3.16.0
 markdown-it-py==3.0.0
 MarkupSafe==3.0.2
+matplotlib==3.9.2
 matplotlib-inline==0.1.7
 mccabe==0.7.0
 mcp==1.9.1
