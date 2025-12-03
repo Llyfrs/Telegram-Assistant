@@ -23,7 +23,7 @@ class Calendar:
     def get_events(self, max_results=10):
 
         try:
-            service = build('calendar', 'v3', credentials=self.credentials)
+            service = build('calendar', 'v3', credentials=self.credentials, cache_discovery=False)
 
             # Call the Calendar API
             now = datetime.utcnow().isoformat() + 'Z'
@@ -41,7 +41,7 @@ class Calendar:
 
     ## https://developers.google.com/calendar/api/v3/reference/events/insert
     def add_event(self, start: datetime, end: datetime, summary, description=None, location=None, all_day=False):
-        service = build('calendar', 'v3', credentials=self.credentials)
+        service = build('calendar', 'v3', credentials=self.credentials, cache_discovery=False)
 
         timezone = "Europe/Prague"
 
@@ -94,7 +94,7 @@ class Calendar:
     def list_calendars(self):
         """List all calendars the service account has access to."""
         try:
-            service = build('calendar', 'v3', credentials=self.credentials)
+            service = build('calendar', 'v3', credentials=self.credentials, cache_discovery=False)
             calendar_list = service.calendarList().list().execute()
             return calendar_list.get('items', [])
         except Exception as e:

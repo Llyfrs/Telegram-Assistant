@@ -3,7 +3,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
-from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.models.openrouter import OpenRouterModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.providers.openrouter import OpenRouterProvider
 
@@ -23,7 +23,7 @@ You may use **Markdown** to format your response.
 
 
 provider = OpenRouterProvider(api_key=os.getenv("OPENROUTER_API_KEY"))
-model = OpenAIModel('openai/gpt-4o-mini', provider=provider)
+model = OpenRouterModel('openai/gpt-4o-mini', provider=provider)
 
 class Event(BaseModel):
     title: str
