@@ -28,5 +28,7 @@ async def torn_new_events(context: ContextTypes.DEFAULT_TYPE):
     if len(events) > 0:
         logger.info("New event found, sending alert")
         await torn.send("*Events*\n\n" + "\n".join(events), clean=False)
+    elif len(newevents) == 0:
+        await torn.clear()
 
     pass

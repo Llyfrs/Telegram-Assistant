@@ -1,5 +1,6 @@
 import asyncio
 import functools
+import logging
 import os
 from datetime import datetime, timedelta, date
 from typing import Dict, Optional, Union
@@ -17,24 +18,14 @@ from enums.bot_data import BotData
 from enums.database import DatabaseConstants
 from modules.bot import Bot
 from modules.calendar import Calendar
-from modules.database import MongoDB
+from modules.database import ValkeyDB
 from modules.file_system import DiskFileSystem
 from modules.location_manager import LocationManager
 from modules.memory import Memory
 from modules.reminder import seconds_until, calculate_seconds, Reminders
-from modules.time_capsule import create_capsule
-from modules.habits import (
-    create_habit as _create_habit,
-    get_active_habits,
-    deactivate_habit,
-    get_habit_stats,
-    format_habit_stats,
-    HABIT_COLORS,
-)
-from modules.habit_heatmap import generate_habit_heatmap
-from utils.logging import get_logger
 
-logger = get_logger(__name__)
+
+logger = logging.getLogger(__name__)
 
 
 use_openAI = False
@@ -55,10 +46,7 @@ if use_openAI:
     model = OpenAIResponsesModel('gpt-5.1', provider=provider)
 else:
     provider = OpenRouterProvider(api_key=os.getenv("OPENROUTER_API_KEY"))
-    model = OpenAIModel('deepseek/deepseek-v3.2', provider=provider)
-    # include_reasoning: True causes "missing thought_signature" errors with Gemini on OpenRouter
-    # because pydantic-ai does not yet preserve these vendor-specific tokens in the conversation history.
-    # model_settings = OpenAIResponsesModelSettings(extra_body={'include_reasoning': True})
+    model = OpenAIModel('google/gemini-3-pro-preview', provider=provider, request_parameters={'extra_body': {'include_reasoning': True}})
 
 
 def main_agent_system_prompt() -> str:
@@ -76,6 +64,9 @@ Start interactions with relevant, context-aware actions or suggestions, consider
 Avoid performative empathy and filler phrases such as: “You’re absolutely right to call me out,” “I understand how you feel,” “Thanks for pointing that out,” or “That’s a great question!” 
 You may occasionally use humor, sarcasm, or playful jabs to aid clarity or rapport, but use them sparingly and avoid repeated or forced jokes. 
 Prioritize utility, insight, and clarity over charisma. 
+
+If you recognize unhealthy or unproductive user behavior patterns, push back once per pattern per conversation 
+(e.g., if user ignores advice to sleep, don’t repeat it again). 
 
 If the user starts a new conversation, assume program restart or chat clear; leverage all available context and tools to understand the environment. 
 
@@ -314,7 +305,7 @@ def initialize_main_agent(application: Application):
         if bot_wrapper:
             return bot_wrapper
 
-        chat_id = MongoDB().get(DatabaseConstants.MAIN_CHAT_ID, None)
+        chat_id = ValkeyDB().get_serialized(DatabaseConstants.MAIN_CHAT_ID, None)
 
         if chat_id is None:
             return None
@@ -357,110 +348,7 @@ def initialize_main_agent(application: Application):
 
         return "Message sent to Telegram."
 
-    def create_time_capsule(message: str, deliver_in_days: int) -> str:
-        """Create a time capsule message to be delivered in the future."""
-        chat_id = MongoDB().get(DatabaseConstants.MAIN_CHAT_ID, None)
 
-        if chat_id is None:
-            return "Error: Main chat ID is not configured."
-
-        if isinstance(chat_id, str):
-            try:
-                chat_id = int(chat_id)
-            except ValueError:
-                return "Error: Invalid chat ID configuration."
-
-        result = create_capsule(message=message, deliver_in_days=deliver_in_days, chat_id=chat_id)
-        return f"Time capsule created! It will be delivered on {result['delivery_date']} ({result['days_until_delivery']} days from now)."
-
-    def create_habit_tool(
-        name: str,
-        habit_type: str = "boolean",
-        options: list[str] = None,
-        color: str = "green"
-    ) -> str:
-        """Create a new habit to track."""
-        chat_id = MongoDB().get(DatabaseConstants.MAIN_CHAT_ID, None)
-
-        if chat_id is None:
-            return "Error: Main chat ID is not configured."
-
-        if isinstance(chat_id, str):
-            chat_id = int(chat_id)
-
-        result = _create_habit(
-            name=name,
-            chat_id=chat_id,
-            habit_type=habit_type,
-            options=options,
-            color=color
-        )
-        return f"Habit '{result['name']}' created! Type: {result['type']}, Color: {result['color']}. It will appear in your daily check-in."
-
-    def list_habits_tool() -> str:
-        """List all active habits."""
-        chat_id = MongoDB().get(DatabaseConstants.MAIN_CHAT_ID, None)
-
-        if chat_id is None:
-            return "Error: Main chat ID is not configured."
-
-        if isinstance(chat_id, str):
-            chat_id = int(chat_id)
-
-        habits = get_active_habits(chat_id)
-
-        if not habits:
-            return "No habits being tracked. Create one with create_habit."
-
-        lines = ["**Active Habits:**"]
-        for h in habits:
-            type_info = f"({h.habit_type})"
-            if h.habit_type == "count" and h.options:
-                type_info = f"(count: {', '.join(h.options)})"
-            lines.append(f"- {h.name} {type_info} [ID: {h.habit_id}] [{h.color}]")
-
-        return "\n".join(lines)
-
-    def remove_habit_tool(habit_id: str) -> str:
-        """Deactivate a habit."""
-        success = deactivate_habit(habit_id)
-        if success:
-            return f"Habit {habit_id} has been deactivated."
-        return f"Habit {habit_id} not found."
-
-    def get_habit_stats_tool(habit_id: str, days: int = 30) -> str:
-        """Get statistics for a habit."""
-        stats = get_habit_stats(habit_id, days)
-        return format_habit_stats(stats)
-
-    def generate_heatmap_tool(habit_id: str, period: str = "last_30_days") -> str:
-        """Generate and send a heatmap visualization for a habit."""
-        chat_id = MongoDB().get(DatabaseConstants.MAIN_CHAT_ID, None)
-
-        if chat_id is None:
-            return "Error: Main chat ID is not configured."
-
-        if isinstance(chat_id, str):
-            chat_id = int(chat_id)
-
-        buf = generate_habit_heatmap(habit_id, period)
-
-        if buf is None:
-            return "Error: Failed to generate heatmap. Habit not found."
-
-        # Send the image
-        async def _send_image():
-            await application.bot.send_photo(chat_id=chat_id, photo=buf)
-
-        future = asyncio.run_coroutine_threadsafe(_send_image(), loop)
-
-        try:
-            future.result()
-        except Exception as exc:
-            logger.error("Error sending heatmap: %s", exc)
-            return f"Error sending heatmap: {exc}"
-
-        return "Heatmap sent!"
 
     main_agent = Agent(
         name="Main Agent",
@@ -555,53 +443,6 @@ def initialize_main_agent(application: Application):
                 name="search_file_system",
                 description="Returns the current state of the file system.",
                 function=file_manager.search
-            ),
-            ## Time Capsule
-            Tool(
-                name="create_time_capsule",
-                description="Creates a time capsule - a message to the user's future self. "
-                "Use this when the user wants to send a message, reminder, or note to themselves "
-                "at a future date (weeks, months, or even years ahead). "
-                "Unlike reminders which are task-oriented, time capsules are reflective messages "
-                "that will be delivered with distinctive formatting.",
-                function=create_time_capsule
-            ),
-            ## Habit Tracking
-            Tool(
-                name="create_habit",
-                description="Creates a new habit to track daily. "
-                "habit_type: 'boolean' for yes/no habits, 'count' for quantity tracking. "
-                "options: for count type, list of button options (e.g., ['0', '1-2', '3-4', '5+']). "
-                "color: pick a color that matches the habit theme - "
-                "blue for calm/mindfulness, green for health/fitness, purple for creativity, "
-                "orange for productivity, red for intensity, cyan for hydration, pink for self-care. "
-                "Available colors: green, blue, purple, orange, red, cyan, pink.",
-                function=create_habit_tool
-            ),
-            Tool(
-                name="list_habits",
-                description="Lists all active habits being tracked for the user.",
-                function=list_habits_tool
-            ),
-            Tool(
-                name="remove_habit",
-                description="Deactivates a habit by its ID. The habit will no longer appear in daily check-ins.",
-                function=remove_habit_tool
-            ),
-            Tool(
-                name="get_habit_stats",
-                description="Gets statistics for a habit. "
-                "For boolean habits: completion rate, current streak, best streak. "
-                "For count/numeric habits: average, trend (improving/declining), distribution, min/max values. "
-                "days: number of days to look back (default 30).",
-                function=get_habit_stats_tool
-            ),
-            Tool(
-                name="generate_heatmap",
-                description="Generates a GitHub-style heatmap visualization for a habit and sends it as an image. "
-                "habit_id: the habit to visualize. "
-                "period: 'last_30_days', 'last_365_days', 'month:YYYY-MM', or 'year:YYYY'.",
-                function=generate_heatmap_tool
             ),
 
         ],
