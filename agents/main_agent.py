@@ -7,7 +7,8 @@ from typing import Dict, Optional, Union
 
 from openai.types.responses import WebSearchToolParam
 from pydantic_ai import Agent, Tool
-from pydantic_ai.models.openai import OpenAIModel, OpenAIResponsesModelSettings, OpenAIResponsesModel
+from pydantic_ai.models.openai import OpenAIResponsesModelSettings, OpenAIResponsesModel
+from pydantic_ai.models.openrouter import OpenRouterModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.providers.openrouter import OpenRouterProvider
 from telegram.ext import Application
@@ -23,6 +24,16 @@ from modules.file_system import DiskFileSystem
 from modules.location_manager import LocationManager
 from modules.memory import Memory
 from modules.reminder import seconds_until, calculate_seconds, Reminders
+
+# Import tools that were missing in local but present in remote
+from modules.time_capsule import create_capsule as create_time_capsule
+from modules.habits import (
+    create_habit as create_habit_tool,
+    get_active_habits as list_habits_tool,
+    deactivate_habit as remove_habit_tool,
+    get_habit_stats as get_habit_stats_tool
+)
+from modules.habit_heatmap import generate_habit_heatmap as generate_heatmap_tool
 
 
 logger = logging.getLogger(__name__)
@@ -45,8 +56,14 @@ if use_openAI:
 
     model = OpenAIResponsesModel('gpt-5.1', provider=provider)
 else:
+    # Note: api_key is not a direct argument to OpenRouterModel.__init__ in this version.
+    # It typically relies on environment variables (OPENROUTER_API_KEY) or provider configuration.
+    # Assuming standard env var usage:
     provider = OpenRouterProvider(api_key=os.getenv("OPENROUTER_API_KEY"))
-    model = OpenAIModel('google/gemini-3-pro-preview', provider=provider, request_parameters={'extra_body': {'include_reasoning': True}})
+    model = OpenRouterModel('deepseek/deepseek-v3.2', provider=provider)
+    # include_reasoning: True causes "missing thought_signature" errors with Gemini on OpenRouter
+    # because pydantic-ai does not yet preserve these vendor-specific tokens in the conversation history.
+    # model_settings = OpenAIResponsesModelSettings(extra_body={'include_reasoning': True})
 
 
 def main_agent_system_prompt() -> str:
@@ -355,52 +372,52 @@ def initialize_main_agent(application: Application):
         model=model,
         model_settings=model_settings,
         tools=[
-            Tool(
+            Tool(strict=False, 
                 name="seconds_until",
                 description="Returns number seconds remaining to provided date. Date format has to be %Y-%m-%d %H:%M:%S. ",
                 function=seconds_until,
             ),
-            Tool(
+            Tool(strict=False, 
                 name="convert_to_seconds",
                 description="Converts days, hours, minutes and seconds to just seconds.",
                 function=calculate_seconds,
             ),
-            Tool(
+            Tool(strict=False, 
                 name="create_reminder",
                 description="Creates a reminder that will notify the user after a specified number of seconds. "
                 "This function is non blocking and will create a "
                 "new thread that notifies the user automatically.",
                 function=reminder.add_reminder
             ),
-            Tool(
+            Tool(strict=False, 
                 name="cancel_reminder",
                 description="Cancels reminders specified by their IDs.",
                 function=reminder.remove_reminders
             ),
-            Tool(
+            Tool(strict=False, 
                 name="get_reminders",
                 description="Returns list of all active reminders.",
                 function=reminder.get_reminders
             ),
-            Tool(
+            Tool(strict=False, 
                 name="create_event",
                 description="Creates an event in a the users google calendar. "
                 "This is for events that require the user knows about them in advance and needs to plan around. "
                 "unlike reminders that are set and forget.",
                 function=blocking_add_event,
             ),
-            Tool(
+            Tool(strict=False, 
                 name="send_telegram_message",
                 description="Sends a Markdown-formatted message to the user's primary Telegram chat. "
                 "Use this for any user-facing response.",
                 function=send_telegram_message,
             ),
-            Tool(
+            Tool(strict=False, 
                 name="remove_location",
                 description="Removes a static location from the system by its name",
                 function=location.remove_static_location
             ),
-            Tool(
+            Tool(strict=False, 
                 name="search_knowledge_graph",
                 description="Searches the knowledge graph for a given query and returns the results."
                 "Use only when the already provided memory is not enough to answer user questions you might have."
@@ -408,41 +425,88 @@ def initialize_main_agent(application: Application):
                 function=memory.search_graph
             ),
             ## File Manager Tools
-            Tool(
+            Tool(strict=False, 
                 name="mkdir",
                 description="Creates a new directory in the file system.",
                 function=file_manager.mkdir
             ),
-            Tool(
+            Tool(strict=False, 
                 name="ls",
                 description="Lists the contents of a directory in the file system.",
                 function=file_manager.list_dir
             ),
-            Tool(
+            Tool(strict=False, 
                 name="read_file",
                 description="Reads the contents of a file in the file system.",
                 function=file_manager.read_file
             ),
-            Tool(
+            Tool(strict=False, 
                 name="write_file",
                 description="Writes content to a file in the file system. "
                 "If the file already exists, it will be overwritten.",
                 function=file_manager.write_file
             ),
-            Tool(
+            Tool(strict=False, 
                 name="create_file",
                 description="Creates a new file in the file system with the specified content.",
                 function=file_manager.create_file
             ),
-            Tool(
+            Tool(strict=False, 
                 name="delete_file",
                 description="Deletes a file or directory in the file system.",
                 function=file_manager.delete
             ),
-            Tool(
+            Tool(strict=False, 
                 name="search_file_system",
                 description="Returns the current state of the file system.",
                 function=file_manager.search
+            ),
+            ## Time Capsule
+            Tool(strict=False, 
+                name="create_time_capsule",
+                description="Creates a time capsule - a message to the user's future self. "
+                "Use this when the user wants to send a message, reminder, or note to themselves "
+                "at a future date (weeks, months, or even years ahead). "
+                "Unlike reminders which are task-oriented, time capsules are reflective messages "
+                "that will be delivered with distinctive formatting.",
+                function=create_time_capsule
+            ),
+            ## Habit Tracking
+            Tool(strict=False, 
+                name="create_habit",
+                description="Creates a new habit to track daily. "
+                "habit_type: 'boolean' for yes/no habits, 'count' for quantity tracking. "
+                "options: for count type, list of button options (e.g., ['0', '1-2', '3-4', '5+']). "
+                "color: pick a color that matches the habit theme - "
+                "blue for calm/mindfulness, green for health/fitness, purple for creativity, "
+                "orange for productivity, red for intensity, cyan for hydration, pink for self-care. "
+                "Available colors: green, blue, purple, orange, red, cyan, pink.",
+                function=create_habit_tool
+            ),
+            Tool(strict=False, 
+                name="list_habits",
+                description="Lists all active habits being tracked for the user.",
+                function=list_habits_tool
+            ),
+            Tool(strict=False, 
+                name="remove_habit",
+                description="Deactivates a habit by its ID. The habit will no longer appear in daily check-ins.",
+                function=remove_habit_tool
+            ),
+            Tool(strict=False, 
+                name="get_habit_stats",
+                description="Gets statistics for a habit. "
+                "For boolean habits: completion rate, current streak, best streak. "
+                "For count/numeric habits: average, trend (improving/declining), distribution, min/max values. "
+                "days: number of days to look back (default 30).",
+                function=get_habit_stats_tool
+            ),
+            Tool(strict=False, 
+                name="generate_heatmap",
+                description="Generates a GitHub-style heatmap visualization for a habit and sends it as an image. "
+                "habit_id: the habit to visualize. "
+                "period: 'last_30_days', 'last_365_days', 'month:YYYY-MM', or 'year:YYYY'.",
+                function=generate_heatmap_tool
             ),
 
         ],
@@ -473,4 +537,4 @@ def initialize_main_agent(application: Application):
 
     application.bot_data[BotData.MAIN_AGENT] = main_agent
 
-    logger.info("Main agent initialized with OpenAI model and tools.")
+    logger.info("Main agent initialized.")

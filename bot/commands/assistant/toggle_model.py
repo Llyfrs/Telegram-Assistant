@@ -1,12 +1,11 @@
 import os
 
 from pydantic_ai import Agent
-from pydantic_ai.models.openai import OpenAIResponsesModel, OpenAIModel
+from pydantic_ai.models.openrouter import OpenRouterModel
+from pydantic_ai.providers.openrouter import OpenRouterProvider
 
 from bot.classes.command import command
 from enums.bot_data import BotData
-
-from agents.main_agent import provider
 
 
 # openai/o4-mini-high deepseek/deepseek-chat-v3-0324 qwen/qwen3-235b-a22b
@@ -24,7 +23,8 @@ async def toggle_model(update, context):
 
     model_name = MODELS[i]
 
-    client.model = OpenAIModel(model_name, provider=provider)
+    provider = OpenRouterProvider(api_key=os.getenv("OPENROUTER_API_KEY"))
+    client.model = OpenRouterModel(model_name, provider=provider)
 
     context.bot_data[BotData.MAIN_AGENT] = client
 
