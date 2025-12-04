@@ -69,8 +69,19 @@ class Torn:
     async def clear(self):
         caller = inspect.stack()[1].function
         if caller in self.last_messages:
-            await self.bot.delete_message(chat_id=self.chat_id, message_id=self.last_messages[caller].message_id)
+            try:
+                await self.bot.delete_message(chat_id=self.chat_id, message_id=self.last_messages[caller].message_id)
+            except Exception as e:
+                logger.debug("Failed to delete message (likely already deleted): %s", e)
             self.last_messages.pop(caller)
+
+    async def clear_by_name(self, name: str):
+        if name in self.last_messages:
+            try:
+                await self.bot.delete_message(chat_id=self.chat_id, message_id=self.last_messages[name].message_id)
+            except Exception as e:
+                logger.debug("Failed to delete message (likely already deleted): %s", e)
+            self.last_messages.pop(name)
 
     async def send(self, text: str, clean: bool = True):
         try:

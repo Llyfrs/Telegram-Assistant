@@ -75,6 +75,7 @@ async def send_stock_report(torn: Torn) -> None:
     message += f"Capacity: {round(capacity, 2)}"
 
     await torn.send(message)
+    MongoDB().set("company_stock_count", total_in_stock)
 
 
 @logg_error
@@ -137,6 +138,7 @@ async def send_train_status(torn: Torn) -> None:
     )
 
     await torn.send(message)
+    MongoDB().set("company_train_count", trains_available)
 
 
 async def get_valid_bounties(torn: Torn, min_money: int) -> List[Dict[str, Any]]:

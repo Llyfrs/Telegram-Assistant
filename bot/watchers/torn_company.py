@@ -6,6 +6,7 @@ from telegram.ext import ContextTypes
 
 from bot.classes.watcher import Watcher
 from enums.bot_data import BotData
+from modules.database import MongoDB
 from modules.torn import Torn
 from modules.torn_tasks import send_stock_report, send_train_status
 from utils.logging import get_logger
@@ -82,3 +83,57 @@ class TornTrainWatcher(_DailyTornWatcher):
             return
 
         await send_train_status(torn)
+
+
+class TornStockClearWatcher(Watcher):
+    interval = 60
+
+    @classmethod
+    async def job(cls, context: ContextTypes.DEFAULT_TYPE) -> None:
+        torn = _DailyTornWatcher._get_torn(context)
+        if torn is None:
+            return
+
+        await torn.update_company()
+
+        if torn.company is None:
+            return
+
+        company_stock = torn.company.get("company_stock", {})
+        try:
+            total_in_stock = sum(float(v.get("in_stock", 0)) + float(v.get("on_order", 0)) for v in company_stock.values())
+        except (TypeError, ValueError) as exc:
+            logger.error("Failed to aggregate company stock data in clear watcher: %s", exc)
+            return
+
+        last_stock = MongoDB().get("company_stock_count", 0)
+
+        if total_in_stock > last_stock:
+            await torn.clear_by_name("send_stock_report")
+
+        MongoDB().set("company_stock_count", total_in_stock)
+
+
+class TornTrainClearWatcher(Watcher):
+    interval = 60
+
+    @classmethod
+    async def job(cls, context: ContextTypes.DEFAULT_TYPE) -> None:
+        torn = _DailyTornWatcher._get_torn(context)
+        if torn is None:
+            return
+
+        await torn.update_company()
+
+        if torn.company is None:
+            return
+
+        detailed = torn.company.get("company_detailed", {})
+        trains_available = detailed.get("trains_available", 0)
+
+        last_trains = MongoDB().get("company_train_count", 0)
+
+        if trains_available < last_trains:
+            await torn.clear_by_name("send_train_status")
+
+        MongoDB().set("company_train_count", trains_available)
