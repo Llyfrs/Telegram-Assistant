@@ -15,6 +15,7 @@ class SettingsKey:
     DEBUG = "debug"
     RETRIEVAL = "retrieval"
     TRACK_BOUNTIES = "track_bounties"
+    RACING_NOTIFICATIONS = "racing_notifications"
     CANCEL = "cancel"
 
 
@@ -22,7 +23,8 @@ class SettingsKey:
 SETTINGS = [
     ("Debug", SettingsKey.DEBUG),
     ("Retrieval", SettingsKey.RETRIEVAL),
-    ("Track Bounties", SettingsKey.TRACK_BOUNTIES)
+    ("Track Bounties", SettingsKey.TRACK_BOUNTIES),
+    ("Racing Notifications", SettingsKey.RACING_NOTIFICATIONS)
 ]
 
 

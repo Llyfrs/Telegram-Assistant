@@ -417,49 +417,12 @@ def initialize_main_agent(application: Application):
                 description="Removes a static location from the system by its name",
                 function=location.remove_static_location
             ),
-            Tool(strict=False, 
-                name="search_knowledge_graph",
-                description="Searches the knowledge graph for a given query and returns the results."
-                "Use only when the already provided memory is not enough to answer user questions you might have."
-                "Feel free to call it iteratively (perform search look at results, search again based on the results).",
-                function=memory.search_graph
-            ),
             ## File Manager Tools
-            Tool(strict=False, 
-                name="mkdir",
-                description="Creates a new directory in the file system.",
-                function=file_manager.mkdir
-            ),
-            Tool(strict=False, 
-                name="ls",
-                description="Lists the contents of a directory in the file system.",
-                function=file_manager.list_dir
-            ),
-            Tool(strict=False, 
-                name="read_file",
-                description="Reads the contents of a file in the file system.",
-                function=file_manager.read_file
-            ),
-            Tool(strict=False, 
-                name="write_file",
-                description="Writes content to a file in the file system. "
-                "If the file already exists, it will be overwritten.",
-                function=file_manager.write_file
-            ),
-            Tool(strict=False, 
-                name="create_file",
-                description="Creates a new file in the file system with the specified content.",
-                function=file_manager.create_file
-            ),
-            Tool(strict=False, 
-                name="delete_file",
-                description="Deletes a file or directory in the file system.",
-                function=file_manager.delete
-            ),
-            Tool(strict=False, 
-                name="search_file_system",
-                description="Returns the current state of the file system.",
-                function=file_manager.search
+            Tool(strict=False,
+                name="shell",
+                description="Execute shell-style file commands. "
+                "Supports: mkdir, ls, cat, rm, touch, mv, cp, tree, echo >/>> file, find",
+                function=file_manager.shell
             ),
             ## Time Capsule
             Tool(strict=False, 
