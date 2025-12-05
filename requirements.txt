@@ -194,7 +194,6 @@ SQLAlchemy==2.0.43
 sse-starlette==2.3.5
 stack-data==0.6.3
 starlette==0.46.2
-telegram==0.0.1
 telegramify-markdown==0.4.2
 temporalio==1.19.0
 tenacity==9.1.2
