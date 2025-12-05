@@ -1,15 +1,11 @@
 import asyncio
-import functools
 import logging
 import os
 from datetime import datetime, timedelta, date
-from typing import Dict, Optional, Union
+from typing import Optional
 
-from openai.types.responses import WebSearchToolParam
 from pydantic_ai import Agent, Tool
-from pydantic_ai.models.openai import OpenAIResponsesModelSettings, OpenAIResponsesModel
 from pydantic_ai.models.openrouter import OpenRouterModel
-from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.providers.openrouter import OpenRouterProvider
 from telegram.ext import Application
 
@@ -38,32 +34,8 @@ from modules.habit_heatmap import generate_habit_heatmap as generate_heatmap_too
 
 logger = logging.getLogger(__name__)
 
-
-use_openAI = False
-
-model_settings = None
-
-if use_openAI:
-    provider = OpenAIProvider(api_key=os.getenv("OPENAI_KEY"))
-
-    model_settings = OpenAIResponsesModelSettings(
-        openai_builtin_tools=[WebSearchToolParam(type='web_search_preview'), ],
-
-    )
-
-    ## Not supported for now
-    # {"type":"image_generation"}
-
-    model = OpenAIResponsesModel('gpt-5.1', provider=provider)
-else:
-    # Note: api_key is not a direct argument to OpenRouterModel.__init__ in this version.
-    # It typically relies on environment variables (OPENROUTER_API_KEY) or provider configuration.
-    # Assuming standard env var usage:
-    provider = OpenRouterProvider(api_key=os.getenv("OPENROUTER_API_KEY"))
-    model = OpenRouterModel('deepseek/deepseek-v3.2', provider=provider)
-    # include_reasoning: True causes "missing thought_signature" errors with Gemini on OpenRouter
-    # because pydantic-ai does not yet preserve these vendor-specific tokens in the conversation history.
-    # model_settings = OpenAIResponsesModelSettings(extra_body={'include_reasoning': True})
+provider = OpenRouterProvider(api_key=os.getenv("OPENROUTER_API_KEY"))
+model = OpenRouterModel('deepseek/deepseek-v3.2', provider=provider)
 
 
 def main_agent_system_prompt() -> str:
@@ -302,7 +274,7 @@ def get_memory_files(application: Application) -> str:
 def initialize_main_agent(application: Application):
 
     """
-    Initializes the main agent with the OpenAI model and tools.
+    Initializes the main agent with the OpenRouter model and tools.
     This function should be called at the start of the application.
     """
 
@@ -370,7 +342,6 @@ def initialize_main_agent(application: Application):
     main_agent = Agent(
         name="Main Agent",
         model=model,
-        model_settings=model_settings,
         tools=[
             Tool(strict=False, 
                 name="seconds_until",

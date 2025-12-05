@@ -4,7 +4,6 @@ from typing import Optional
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
 from pydantic_ai.models.openrouter import OpenRouterModel
-from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.providers.openrouter import OpenRouterProvider
 
 from utils.logging import get_logger
