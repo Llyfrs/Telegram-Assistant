@@ -35,7 +35,7 @@ from modules.habit_heatmap import generate_habit_heatmap as generate_heatmap_too
 logger = logging.getLogger(__name__)
 
 provider = OpenRouterProvider(api_key=os.getenv("OPENROUTER_API_KEY"))
-model = OpenRouterModel('deepseek/deepseek-v3.2', provider=provider)
+model = OpenRouterModel('mistralai/devstral-2512:free', provider=provider)
 
 
 def main_agent_system_prompt() -> str:
