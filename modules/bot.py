@@ -1,6 +1,11 @@
 import telegram
 import telegramify_markdown
 
+from io import BytesIO
+from typing import Optional
+
+from telegram import InputFile
+
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -69,3 +74,34 @@ class Bot:
 
         except Exception as exc:
             logger.error("Error editing message: %s", exc)
+
+    async def send_photo(
+        self,
+        photo: BytesIO,
+        caption: Optional[str] = None,
+        markdown: bool = True,
+        filename: str = "image.png",
+    ):
+        """
+        Send an in-memory image to the configured chat.
+
+        Args:
+            photo: BytesIO containing the image data (e.g. PNG). Will be read from its current position.
+            caption: Optional caption text.
+            markdown: If True, caption is markdownified and sent as MarkdownV2.
+            filename: Filename used for Telegram's upload metadata.
+        """
+        try:
+            if caption and markdown:
+                caption = telegramify_markdown.markdownify(caption)
+
+            input_file = InputFile(photo, filename=filename)
+
+            return await self.bot.send_photo(
+                chat_id=self.chat_id,
+                photo=input_file,
+                caption=caption,
+                parse_mode="MarkdownV2" if (caption and markdown) else None,
+            )
+        except Exception as exc:
+            logger.error("Error sending photo: %s", exc)

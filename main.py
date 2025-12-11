@@ -3,12 +3,12 @@
 import glob
 import importlib
 import os
+from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
-import pytz
 from telegram.ext import Defaults
 
 from agents.main_agent import initialize_main_agent
@@ -24,7 +24,9 @@ from modules.timetable import TimeTable
 from modules.tools import init_file_manager
 from modules.torn import Torn
 from enums.bot_data import BotData
-from utils.logging import setup_logging
+from utils.logging import get_logger, setup_logging
+
+logger = get_logger(__name__)
 
 
 # Configure logging first, before any other imports that might log
@@ -44,7 +46,13 @@ if __name__ == '__main__':
 
 
 
-    defaults = Defaults(tzinfo=pytz.timezone('CET'))  ## Makes sure that
+    try:
+        tz = ZoneInfo("Europe/Prague")
+    except Exception as e:
+        logger.warning("Failed to load ZoneInfo timezone, falling back to UTC: %s", e)
+        tz = ZoneInfo("UTC")
+
+    defaults = Defaults(tzinfo=tz)  ## Makes sure that
 
     application = (CustomApplicationBuilder()
                    .token(os.environ.get("TELEGRAM_KEY"))
@@ -75,7 +83,7 @@ if __name__ == '__main__':
 
     application.bot_data[BotData.TORN] = t
 
-    application.bot_data[BotData.TIMETABLE] = TimeTable(pytz.timezone('CET'))
+    application.bot_data[BotData.TIMETABLE] = TimeTable(tz)
 
 
     application.bot_data[BotData.MEMORY] = Memory(

@@ -5,6 +5,12 @@ from datetime import date, timedelta
 from io import BytesIO
 from typing import Optional
 
+import matplotlib
+
+# This module generates images in-memory and is often invoked from background worker threads
+# (e.g., Telegram bot handlers). For stability, force a non-GUI backend.
+matplotlib.use("Agg")
+
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import numpy as np

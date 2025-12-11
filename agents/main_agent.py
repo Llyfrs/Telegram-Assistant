@@ -1,5 +1,4 @@
 import asyncio
-import logging
 import os
 from datetime import datetime, timedelta, date
 from typing import Optional
@@ -20,6 +19,7 @@ from modules.file_system import DiskFileSystem
 from modules.location_manager import LocationManager
 from modules.memory import Memory
 from modules.reminder import seconds_until, calculate_seconds, Reminders
+from utils.logging import get_logger
 
 # Import tools that were missing in local but present in remote
 from modules.time_capsule import create_capsule as create_time_capsule
@@ -32,7 +32,7 @@ from modules.habits import (
 from modules.habit_heatmap import generate_habit_heatmap as generate_heatmap_tool
 
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 provider = OpenRouterProvider(api_key=os.getenv("OPENROUTER_API_KEY"))
 model = OpenRouterModel('mistralai/devstral-2512:free', provider=provider)
@@ -337,6 +337,40 @@ def initialize_main_agent(application: Application):
 
         return "Message sent to Telegram."
 
+    def generate_heatmap(habit_id: str, period: str = "last_30_days") -> str:
+        """
+        Generate a habit heatmap and send it to the user's primary Telegram chat.
+
+        This returns a short status string for the LLM tool response (image is delivered via Telegram).
+        """
+        bot_wrapper = ensure_primary_bot()
+
+        if bot_wrapper is None:
+            warning = "Main chat ID is not configured; unable to deliver heatmap image."
+            logger.warning(warning)
+            return warning
+
+        buf = generate_heatmap_tool(habit_id=habit_id, period=period)
+        if buf is None:
+            return "Failed to generate heatmap (habit not found or rendering error)."
+
+        async def _send():
+            await bot_wrapper.send_photo(
+                buf,
+                caption=f"Heatmap for `{habit_id}` ({period})",
+                markdown=True,
+                filename=f"habit_{habit_id}_{period}.png",
+            )
+
+        future = asyncio.run_coroutine_threadsafe(_send(), loop)
+        try:
+            future.result()
+        except Exception as exc:  # pragma: no cover - safety net
+            logger.error("Error while sending heatmap to Telegram: %s", exc)
+            return f"Failed to send heatmap: {exc}"
+
+        return "Heatmap sent to Telegram."
+
 
 
     main_agent = Agent(
@@ -440,7 +474,7 @@ def initialize_main_agent(application: Application):
                 description="Generates a GitHub-style heatmap visualization for a habit and sends it as an image. "
                 "habit_id: the habit to visualize. "
                 "period: 'last_30_days', 'last_365_days', 'month:YYYY-MM', or 'year:YYYY'.",
-                function=generate_heatmap_tool
+                function=generate_heatmap
             ),
 
         ],
