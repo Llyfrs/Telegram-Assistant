@@ -160,7 +160,7 @@ def generate_habit_heatmap(
         return None
 
     start_date, end_date, period_label = _parse_period(period)
-    logs = get_logs_for_period(habit.chat_id, start_date, end_date)
+    logs = get_logs_for_period(start_date, end_date)
     logs_by_date = {log.date: log for log in logs}
 
     return _render_heatmap(

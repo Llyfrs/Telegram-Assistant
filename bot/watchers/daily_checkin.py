@@ -50,8 +50,8 @@ class DailyCheckin(Watcher):
         if isinstance(chat_id, str):
             chat_id = int(chat_id)
 
-        # Get active habits for this user
-        habits = get_active_habits(chat_id)
+        # Get active habits
+        habits = get_active_habits()
 
         if not habits:
             logger.info("No habits to check in for chat %s", chat_id)
@@ -121,7 +121,7 @@ class DailyCheckin(Watcher):
         chat_id = query.message.chat.id
 
         # Update the daily log
-        update_daily_log(chat_id=chat_id, habit_id=habit_id, habit_value=value)
+        update_daily_log(habit_id=habit_id, habit_value=value)
 
         # Get habit for confirmation message
         habit = get_habit_by_id(habit_id)

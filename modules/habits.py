@@ -35,7 +35,6 @@ class Habit(Document):
     habit_type: str = "boolean"  # "boolean" or "count"
     options: Optional[list[str]] = None  # For count type: ["0", "1-2", "3-4", "5+"]
     color: str = "green"  # Color scheme for heatmap
-    chat_id: int
     active: bool = True
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -46,14 +45,12 @@ class DailyLog(Document):
     model_config = ConfigDict(collection_name="daily_logs")
 
     date: str  # "2025-11-29" format
-    chat_id: int
     habits: dict[str, str] = Field(default_factory=dict)  # {"habit_id": "yes"} or {"habit_id": "3"}
     notes: Optional[str] = None
 
 
 def create_habit(
     name: str,
-    chat_id: int,
     habit_type: str = "boolean",
     options: Optional[list[str]] = None,
     color: str = "green"
@@ -63,7 +60,6 @@ def create_habit(
 
     Args:
         name: Display name of the habit
-        chat_id: Telegram chat ID
         habit_type: "boolean" or "count"
         options: For count type, the button options (e.g., ["0", "1-2", "3-4", "5+"])
         color: Color scheme for heatmap (green, blue, purple, orange, red, cyan, pink)
@@ -82,11 +78,10 @@ def create_habit(
         habit_type=habit_type,
         options=options,
         color=color,
-        chat_id=chat_id,
     )
     habit.save(key_field="habit_id")
 
-    logger.info("Created habit %s for chat %s", name, chat_id)
+    logger.info("Created habit %s", name)
 
     return {
         "status": "created",
@@ -97,9 +92,9 @@ def create_habit(
     }
 
 
-def get_active_habits(chat_id: int) -> list[Habit]:
-    """Get all active habits for a user."""
-    return Habit.find(chat_id=chat_id, active=True)
+def get_active_habits() -> list[Habit]:
+    """Get all active habits."""
+    return Habit.find(active=True)
 
 
 def get_habit_by_id(habit_id: str) -> Optional[Habit]:
@@ -118,40 +113,38 @@ def deactivate_habit(habit_id: str) -> bool:
     return False
 
 
-def get_or_create_daily_log(chat_id: int, log_date: Optional[date] = None) -> DailyLog:
+def get_or_create_daily_log(log_date: Optional[date] = None) -> DailyLog:
     """Get or create a daily log for the given date."""
     if log_date is None:
         log_date = date.today()
 
     date_str = log_date.isoformat()
 
-    existing = DailyLog.find_one(chat_id=chat_id, date=date_str)
+    existing = DailyLog.find_one(date=date_str)
     if existing:
         return existing
 
     log = DailyLog(
         date=date_str,
-        chat_id=chat_id,
     )
     log.save()
     return log
 
 
 def update_daily_log(
-    chat_id: int,
     log_date: Optional[date] = None,
     habit_id: Optional[str] = None,
     habit_value: Optional[str] = None,
 ) -> DailyLog:
     """Update a daily log with habit completion."""
-    log = get_or_create_daily_log(chat_id, log_date)
+    log = get_or_create_daily_log(log_date)
 
     if habit_id and habit_value is not None:
         log.habits[habit_id] = habit_value
 
-    # Use date + chat_id as compound key for upsert
+    # Use date as key for upsert (single-user bot)
     DailyLog._collection().update_one(
-        {"date": log.date, "chat_id": log.chat_id},
+        {"date": log.date},
         {"$set": log.model_dump(mode="json")},
         upsert=True
     )
@@ -159,9 +152,9 @@ def update_daily_log(
     return log
 
 
-def get_logs_for_period(chat_id: int, start_date: date, end_date: date) -> list[DailyLog]:
+def get_logs_for_period(start_date: date, end_date: date) -> list[DailyLog]:
     """Get all daily logs for a date range."""
-    all_logs = DailyLog.find(chat_id=chat_id)
+    all_logs = DailyLog.find()
     
     return [
         log for log in all_logs
@@ -256,7 +249,7 @@ def get_habit_stats(habit_id: str, days: int = 30) -> dict:
     end_date = date.today()
     start_date = end_date - timedelta(days=days - 1)
 
-    logs = get_logs_for_period(habit.chat_id, start_date, end_date)
+    logs = get_logs_for_period(start_date, end_date)
     logs_by_date = {log.date: log for log in logs}
 
     # Collect all values
