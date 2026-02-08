@@ -41,6 +41,11 @@ class Watcher(metaclass=WatcherMeta):
         pass
 
 
+def _tuple_to_time(t: Tuple[int, int, int]) -> time:
+    """Convert a (hour, minute, second) tuple to a datetime.time object."""
+    return time(*t)
+
+
 def run_repeated(interval=60, first=None, last=None, **kwargs):
     """Decorator to schedule a repeating job."""
     return _create_watcher_decorator('run_repeating', interval=interval, first=first, last=last, **kwargs)
@@ -48,11 +53,15 @@ def run_repeated(interval=60, first=None, last=None, **kwargs):
 
 def run_daily(time: Union[time, Tuple[int, int, int]], days=(0, 1, 2, 3, 4, 5, 6), **kwargs):
     """Decorator to schedule a daily job."""
+    if isinstance(time, tuple):
+        time = _tuple_to_time(time)
     return _create_watcher_decorator('run_daily', time=time, days=days, **kwargs)
 
 
 def run_monthly(when: Union[time, Tuple[int, int, int]], day: int, **kwargs):
     """Decorator to schedule a monthly job."""
+    if isinstance(when, tuple):
+        when = _tuple_to_time(when)
     return _create_watcher_decorator('run_monthly', when=when, day=day, **kwargs)
 
 
