@@ -53,6 +53,9 @@ class TornCompanyUpdateWatcher(_DailyTornWatcher):
 
     @classmethod
     async def job(cls, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not MongoDB().get("notify_company_update", False):
+            return
+
         torn = cls._get_torn(context)
         if torn is None:
             return
@@ -66,6 +69,9 @@ class TornStockWatcher(_DailyTornWatcher):
 
     @classmethod
     async def job(cls, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not MongoDB().get("notify_stock_report", False):
+            return
+
         torn = cls._get_torn(context)
         if torn is None:
             return
@@ -78,6 +84,9 @@ class TornTrainWatcher(_DailyTornWatcher):
 
     @classmethod
     async def job(cls, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not MongoDB().get("notify_train_report", False):
+            return
+
         torn = cls._get_torn(context)
         if torn is None:
             return
@@ -90,6 +99,9 @@ class TornStockClearWatcher(Watcher):
 
     @classmethod
     async def job(cls, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not MongoDB().get("notify_stock_clear", False):
+            return
+
         torn = _DailyTornWatcher._get_torn(context)
         if torn is None:
             return
@@ -119,6 +131,9 @@ class TornTrainClearWatcher(Watcher):
 
     @classmethod
     async def job(cls, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not MongoDB().get("notify_train_clear", False):
+            return
+
         torn = _DailyTornWatcher._get_torn(context)
         if torn is None:
             return

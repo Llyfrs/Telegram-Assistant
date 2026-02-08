@@ -41,6 +41,9 @@ class DailyCheckin(Watcher):
     @classmethod
     async def job(cls, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Send daily check-in messages."""
+        if not MongoDB().get("notify_daily_habit_checkin", False):
+            return
+
         chat_id = MongoDB().get(DatabaseConstants.MAIN_CHAT_ID)
 
         if chat_id is None:

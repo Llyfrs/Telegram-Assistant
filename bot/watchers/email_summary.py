@@ -57,6 +57,9 @@ class EmailSummary(Watcher):
     @classmethod
     async def job(cls, context: ContextTypes.DEFAULT_TYPE) -> None:
 
+        if not MongoDB().get("notify_email_summary", False):
+            return
+
         return ## disable for now
 
         chat_id = MongoDB().get(DatabaseConstants.EMAIL_CHAT_ID)
