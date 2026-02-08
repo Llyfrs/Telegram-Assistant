@@ -151,14 +151,6 @@ class Torn:
         url = f"https://api.torn.com/v2/user/list?cat=Targets&striptags=true&limit=50&offset={offset}&key={self.api_key}"
         return await self.get(url)
 
-    async def get_races(self, limit=100, sort="DESC", from_ts=None, to_ts=None):
-        url = f"https://api.torn.com/v2/user/races?limit={limit}&sort={sort}&key={self.api_key}"
-        if from_ts is not None:
-            url += f"&from={from_ts}"
-        if to_ts is not None:
-            url += f"&to={to_ts}"
-        return await self.get(url)
-
     async def get_bts(self, id):
 
         cached = BattleStatsCache.get_cached(target_id=id)
