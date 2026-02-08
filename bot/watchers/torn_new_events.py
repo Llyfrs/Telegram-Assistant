@@ -1,12 +1,16 @@
 from telegram.ext import ContextTypes
 from bot.classes.watcher import run_repeated
 from enums.bot_data import BotData
+from modules.database import MongoDB
 from modules.torn import Torn, remove_between_angle_brackets
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
 @run_repeated(interval=30)
 async def torn_new_events(context: ContextTypes.DEFAULT_TYPE):
+
+    if not MongoDB().get("notify_torn_events", False):
+        return
 
     ## Inits static variable
     if not hasattr(torn_new_events, "oldest_event"):

@@ -6,6 +6,7 @@ from telegram.ext import ContextTypes
 from telegramify_markdown import markdownify
 
 from bot.classes.watcher import run_repeated
+from modules.database import MongoDB
 from modules.time_capsule import get_pending_capsules, mark_as_sent
 from utils.logging import get_logger
 
@@ -51,7 +52,10 @@ def format_capsule_message(message: str, created_at: datetime) -> str:
 @run_repeated(interval=1800)  # Check every 30 minutes
 async def time_capsule_delivery(context: ContextTypes.DEFAULT_TYPE):
     """Check for and deliver any pending time capsules."""
-    
+
+    if not MongoDB().get("notify_time_capsule", False):
+        return
+
     pending = get_pending_capsules()
     
     if not pending:

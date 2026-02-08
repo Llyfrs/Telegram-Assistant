@@ -59,6 +59,9 @@ class EmailSummary(Watcher):
 
         return ## disable for now
 
+        if not MongoDB().get("notify_email_summary", False):
+            return
+
         chat_id = MongoDB().get(DatabaseConstants.EMAIL_CHAT_ID)
 
         if chat_id is None:

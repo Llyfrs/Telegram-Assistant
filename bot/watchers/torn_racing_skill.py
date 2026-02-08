@@ -32,6 +32,10 @@ async def torn_racing_skill(context: ContextTypes.DEFAULT_TYPE):
     """
 
     db = MongoDB()
+
+    if not db.get("notify_racing_skill", False):
+        return
+
     torn: Torn = context.bot_data.get(BotData.TORN)
 
     if torn is None:
