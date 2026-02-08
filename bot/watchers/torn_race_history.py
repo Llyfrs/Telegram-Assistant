@@ -46,6 +46,7 @@ def _parse_races(races, torn, known_race_ids):
         # If we couldn't match by player_id, take the first result as a fallback
         # (the API returns user's races, so they should be in results)
         if user_result is None and results:
+            logger.warning("Could not match user in race %d results, using first result as fallback", race_id)
             user_result = results[0]
 
         record = RaceResult(
@@ -93,10 +94,10 @@ def _parse_races(races, torn, known_race_ids):
 async def _fetch_new_races(torn, known_race_ids, existing_records):
     """Fetch races newer than the latest stored race."""
     from_ts = None
-    if existing_records:
-        latest = max(existing_records, key=lambda r: r.schedule_start or 0)
-        if latest.schedule_start:
-            from_ts = latest.schedule_start
+    records_with_ts = [r for r in existing_records if r.schedule_start is not None]
+    if records_with_ts:
+        latest = max(records_with_ts, key=lambda r: r.schedule_start)
+        from_ts = latest.schedule_start
 
     try:
         response = await torn.get_races(limit=100, sort="DESC", from_ts=from_ts)
@@ -122,10 +123,10 @@ async def _fetch_past_races(torn, known_race_ids, existing_records, db):
         return 0
 
     to_ts = None
-    if existing_records:
-        oldest = min(existing_records, key=lambda r: r.schedule_start or float("inf"))
-        if oldest.schedule_start:
-            to_ts = oldest.schedule_start
+    records_with_ts = [r for r in existing_records if r.schedule_start is not None]
+    if records_with_ts:
+        oldest = min(records_with_ts, key=lambda r: r.schedule_start)
+        to_ts = oldest.schedule_start
 
     try:
         response = await torn.get_races(limit=100, sort="DESC", to_ts=to_ts)
@@ -181,8 +182,8 @@ async def torn_race_history(context: ContextTypes.DEFAULT_TYPE):
     new_count = await _fetch_new_races(torn, known_race_ids, existing_records)
 
     # 2. Backfill past races (one batch per run to stay API-friendly)
-    # Re-read records so the backfill sees any just-saved new ones
     if not db.get(BACKFILL_COMPLETE_KEY, False):
+        # Re-read records so the backfill sees any just-saved new ones
         existing_records = RaceResult.find()
         known_race_ids = {r.race_id for r in existing_records}
         past_count = await _fetch_past_races(torn, known_race_ids, existing_records, db)
