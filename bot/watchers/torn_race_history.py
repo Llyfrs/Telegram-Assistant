@@ -57,6 +57,7 @@ def _parse_races(races, torn, known_race_ids):
             status=race.get("status", ""),
             laps=race.get("laps", 0),
             is_official=race.get("is_official", False),
+            skill_gain=race.get("skill_gain"),
             schedule_join_from=schedule.get("join_from"),
             schedule_join_until=schedule.get("join_until"),
             schedule_start=schedule.get("start"),
