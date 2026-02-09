@@ -2,7 +2,7 @@ from datetime import datetime
 
 from telegram.ext import ContextTypes
 
-from bot.classes.watcher import run_daily
+from bot.classes.watcher import run_repeated
 from enums.bot_data import BotData
 from enums.database import DatabaseConstants
 from modules.database import MongoDB
@@ -156,10 +156,10 @@ async def _fetch_past_races(torn, known_race_ids, existing_records, db):
     return len(new_records)
 
 
-@run_daily(time=(2, 0, 0))
+@run_repeated(interval=3600)
 async def torn_race_history(context: ContextTypes.DEFAULT_TYPE):
     """
-    Daily watcher that collects race history from the Torn API.
+    Hourly watcher that collects race history from the Torn API.
 
     On each run it:
       1. Fetches new races (after the latest stored race).
@@ -167,7 +167,7 @@ async def torn_race_history(context: ContextTypes.DEFAULT_TYPE):
          to gradually backfill the full history.
 
     Once all historical data has been retrieved the backfill step is skipped.
-    Runs once per day at 2:00 AM.
+    Runs every hour.
     """
 
     db = MongoDB()
