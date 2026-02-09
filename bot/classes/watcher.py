@@ -46,7 +46,7 @@ def _tuple_to_time(t: Tuple[int, int, int]) -> time:
     return time(*t)
 
 
-def run_repeated(interval=60, first=None, last=None, **kwargs):
+def run_repeated(interval=60, first=0, last=None, **kwargs):
     """Decorator to schedule a repeating job."""
     return _create_watcher_decorator('run_repeating', interval=interval, first=first, last=last, **kwargs)
 
