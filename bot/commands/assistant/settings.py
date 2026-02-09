@@ -34,7 +34,6 @@ class SettingsKey:
 
     # Torn - Racing
     RACING_NOTIFICATIONS = "racing_notifications"
-    RACING_SKILL_TRACKING = "notify_racing_skill"
 
     # Torn - Company
     COMPANY_UPDATE = "notify_company_update"
@@ -78,7 +77,6 @@ SETTINGS_PAGES = {
     ],
     "🏎️ Torn — Racing": [
         ("Racing Join Alert", SettingsKey.RACING_NOTIFICATIONS),
-        ("Racing Skill Tracking", SettingsKey.RACING_SKILL_TRACKING),
     ],
     "🏢 Torn — Company": [
         ("Company Update", SettingsKey.COMPANY_UPDATE),
