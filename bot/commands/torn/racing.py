@@ -33,7 +33,10 @@ def _build_skill_timeline(races: list[RaceResult], current_skill: float) -> list
         return []
 
     # Sort newest first so we can subtract gains starting from current_skill
-    races_with_gain.sort(key=lambda r: r.schedule_end or r.recorded_at.timestamp(), reverse=True)
+    races_with_gain.sort(
+        key=lambda r: r.schedule_end if r.schedule_end is not None else r.recorded_at.timestamp(),
+        reverse=True,
+    )
 
     timeline = []
     skill = current_skill
