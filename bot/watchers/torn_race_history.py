@@ -163,10 +163,11 @@ async def torn_race_history(context: ContextTypes.DEFAULT_TYPE):
 
     On each run it:
       1. Fetches new races (after the latest stored race).
-      2. Fetches one batch of past races (before the oldest stored race)
+      2. Fetches one batch of past races (before the oldest stored race, limit 100)
          to gradually backfill the full history.
 
-    Once all historical data has been retrieved the backfill step is skipped.
+    The backfill step fetches a limited number of races per run to stay API-friendly.
+    Once all historical data has been retrieved, the backfill step is skipped.
     Runs every hour.
     """
 
