@@ -18,6 +18,7 @@ class RaceResult(Document):
     status: str
     laps: int
     is_official: bool
+    skill_gain: Optional[float] = None
 
     # Schedule timestamps (Unix)
     schedule_join_from: Optional[int] = None
