@@ -23,11 +23,13 @@ def _build_skill_timeline(races: list[RaceResult], current_skill: float) -> list
     """
     Reconstruct a skill timeline from race history and the current skill level.
 
-    Races with a ``skill_gain`` are sorted newest-first and we walk backwards,
-    subtracting each gain from the running skill to deduce the level at that
-    point.  The result is returned sorted oldest-first.
+    Only **official** races are considered because custom races can yield up to
+    10× more skill gain (they tend to be much longer), which would skew the
+    prediction model.  Races with a ``skill_gain`` are sorted newest-first and
+    we walk backwards, subtracting each gain from the running skill to deduce
+    the level at that point.  The result is returned sorted oldest-first.
     """
-    races_with_gain = [r for r in races if r.skill_gain is not None and r.skill_gain > 0]
+    races_with_gain = [r for r in races if r.skill_gain is not None and r.skill_gain > 0 and r.is_official]
 
     if not races_with_gain:
         return []
@@ -63,9 +65,10 @@ def calculate_predictions(timeline: list[dict], current_skill: float) -> Optiona
     Models diminishing returns where skill gains decrease as skill level
     increases.  Uses the formula: gain_rate = k * (100 - skill)^n
 
-    Many factors influence gain (laps, map, number of participants, official
-    status which gives ~2× bonus, finishing position) but the exact formula is
-    unknown, so we fit a simple power-law model on the observed data.
+    Many factors influence gain (laps, map, number of participants, finishing
+    position) but the exact formula is unknown, so we fit a simple power-law
+    model on the observed data.  Only official races are used because custom
+    races can yield up to 10× more skill gain due to their longer duration.
     """
     if len(timeline) < 2:
         return None
