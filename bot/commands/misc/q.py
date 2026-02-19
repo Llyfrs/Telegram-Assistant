@@ -2,9 +2,6 @@ import os
 
 from bot.classes.command import command
 from modules.private_notes import save_private_note
-from utils.logging import get_logger
-
-logger = get_logger(__name__)
 
 
 @command
@@ -19,14 +16,10 @@ async def q(update, context):
 
         if note_text and password:
             save_private_note(note_text, password)
-        elif not password:
-            logger.warning("PRIVATE_NOTES_PASSWORD is not configured, skipping /q note save")
-        else:
-            logger.debug("Empty /q note received, nothing was saved")
-    except Exception as exc:
-        logger.error("Failed to save private note: %s", exc)
+    except Exception:
+        pass
     finally:
         try:
             await update.message.delete()
-        except Exception as exc:
-            logger.error("Failed to delete /q message: %s", exc)
+        except Exception:
+            pass
