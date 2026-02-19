@@ -7,6 +7,7 @@ So while the AI is still part of this bot, it's taking a back seat until it gets
 NOTE: I'm slowly getting this project to a state where anybody could run their own version, it currently only needs `TELEGRAM_KEY`, `OPENAI_KEY` and `VALKEY_URI` passed as environment variables, I used aiven to host my Valkey instance, but it should be possible to run one on local host.
 
 Currently, the AI assistant can create reminders, create and manage files and I allowed for it to be able to see send images. 
+The private note command `/q` also requires `PRIVATE_NOTES_PASSWORD` to be set in environment variables.
 
 ## TODO 
 - add google calendar integration
@@ -18,6 +19,7 @@ Currently, the AI assistant can create reminders, create and manage files and I 
 - `toggle_retrival` - doesn't work yet
 - `toggle_debug` - Turns debug mode on allowing you to see what functions and tools where used and what their results where. Great to see if the AI actually did what it should have or if it just made stuff up.
 - `clear_thread` - Deletes current thread and creates new one, basically deleting current chat history from the AI memory. Important as right now the history grows until it reaches maximum tokens which can be expensive. 
+- `/q` - Saves private encrypted note text from `/q ...` input and deletes the sent command message.
 
 ## Function available to the bot 
 - `get_current_time` - return current UT datetime
