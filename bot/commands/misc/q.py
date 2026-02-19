@@ -19,6 +19,10 @@ async def q(update, context):
 
         if note_text and password:
             save_private_note(note_text, password)
+        elif not password:
+            logger.warning("PRIVATE_NOTES_PASSWORD is not configured, skipping /q note save")
+        else:
+            logger.debug("Empty /q note received, nothing was saved")
     except Exception as exc:
         logger.error("Failed to save private note: %s", exc)
     finally:

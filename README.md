@@ -19,7 +19,7 @@ The private note command `/q` also requires `PRIVATE_NOTES_PASSWORD` to be set i
 - `toggle_retrival` - doesn't work yet
 - `toggle_debug` - Turns debug mode on allowing you to see what functions and tools where used and what their results where. Great to see if the AI actually did what it should have or if it just made stuff up.
 - `clear_thread` - Deletes current thread and creates new one, basically deleting current chat history from the AI memory. Important as right now the history grows until it reaches maximum tokens which can be expensive. 
-- `q` - Saves private encrypted note text from `/q ...` input and deletes the sent command message.
+- `/q` - Saves private encrypted note text from `/q ...` input and deletes the sent command message.
 
 ## Function available to the bot 
 - `get_current_time` - return current UT datetime

@@ -10,19 +10,22 @@ PRIVATE_NOTES_COUNT_KEY = "private_notes_last_count"
 async def private_notes_removed(context):
     db = MongoDB()
     current_count = get_private_note_count()
-    previous_count = db.get(PRIVATE_NOTES_COUNT_KEY, current_count)
+    previous_count = db.get(PRIVATE_NOTES_COUNT_KEY, None)
+
+    if previous_count is None:
+        db.set(PRIVATE_NOTES_COUNT_KEY, current_count)
+        return
 
     if current_count < previous_count:
         chat_id = db.get(DatabaseConstants.MAIN_CHAT_ID)
         if chat_id is not None:
-            if isinstance(chat_id, str):
-                chat_id = int(chat_id)
+            chat_id = int(chat_id)
 
             removed_count = previous_count - current_count
             if current_count == 0:
                 text = "⚠️ Private notes database was emptied."
             else:
-                text = f"⚠️ {removed_count} private note(s) were removed from private notes."
+                text = f"⚠️ {removed_count} private note(s) were removed."
 
             await context.bot.send_message(chat_id=chat_id, text=text)
 

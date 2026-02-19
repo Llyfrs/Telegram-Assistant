@@ -73,6 +73,9 @@ class _InMemoryCollection:
         for key in to_delete:
             del self._store[key]
 
+    def count_documents(self, filter: dict) -> int:
+        return len([doc for doc in self._store.values() if self._matches(doc, filter)])
+
     def _matches(self, doc: dict, filter: dict) -> bool:
         for key, value in filter.items():
             if key not in doc:

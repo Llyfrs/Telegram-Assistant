@@ -1,6 +1,6 @@
 import base64
 import hashlib
-from datetime import datetime
+from datetime import datetime, timezone
 
 from cryptography.fernet import Fernet
 from pydantic import ConfigDict, Field
@@ -12,7 +12,7 @@ class PrivateNote(Document):
     model_config = ConfigDict(collection_name="private_notes")
 
     encrypted_text: str
-    sent_at: datetime = Field(default_factory=datetime.utcnow)
+    sent_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 def encrypt_note(note_text: str, password: str) -> str:
@@ -27,4 +27,4 @@ def save_private_note(note_text: str, password: str) -> None:
 
 
 def get_private_note_count() -> int:
-    return len(PrivateNote.find())
+    return PrivateNote._collection().count_documents({})
