@@ -30,6 +30,13 @@ from modules.habits import (
     get_habit_stats as get_habit_stats_tool
 )
 from modules.habit_heatmap import generate_habit_heatmap as generate_heatmap_tool
+from modules.service_manager import (
+    list_services as list_services_tool,
+    get_service_status as get_service_status_tool,
+    start_service as start_service_tool,
+    stop_service as stop_service_tool,
+    restart_service as restart_service_tool,
+)
 
 
 logger = get_logger(__name__)
@@ -475,6 +482,42 @@ def initialize_main_agent(application: Application):
                 "habit_id: the habit to visualize. "
                 "period: 'last_30_days', 'last_365_days', 'month:YYYY-MM', or 'year:YYYY'.",
                 function=generate_heatmap
+            ),
+            ## Service Manager Tools
+            Tool(strict=False,
+                name="list_services",
+                description="Lists all allowed systemd services and their current active state "
+                "(e.g. active, inactive, failed). Only services configured in ALLOWED_SERVICES "
+                "are visible.",
+                function=list_services_tool
+            ),
+            Tool(strict=False,
+                name="get_service_status",
+                description="Returns detailed status of a systemd service: active state, sub-state, "
+                "load state, and description. "
+                "service: unit name with or without the .service suffix.",
+                function=get_service_status_tool
+            ),
+            Tool(strict=False,
+                name="start_service",
+                description="Starts a systemd service. "
+                "Only services listed in ALLOWED_SERVICES can be started. "
+                "service: unit name with or without the .service suffix.",
+                function=start_service_tool
+            ),
+            Tool(strict=False,
+                name="stop_service",
+                description="Stops a systemd service. "
+                "Only services listed in ALLOWED_SERVICES can be stopped. "
+                "service: unit name with or without the .service suffix.",
+                function=stop_service_tool
+            ),
+            Tool(strict=False,
+                name="restart_service",
+                description="Restarts a systemd service. "
+                "Only services listed in ALLOWED_SERVICES can be restarted. "
+                "service: unit name with or without the .service suffix.",
+                function=restart_service_tool
             ),
 
         ],

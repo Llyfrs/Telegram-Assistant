@@ -9,6 +9,66 @@ NOTE: I'm slowly getting this project to a state where anybody could run their o
 Currently, the AI assistant can create reminders, create and manage files and I allowed for it to be able to see send images. 
 The private note command `/q` also requires `PRIVATE_NOTES_PASSWORD` to be set in environment variables.
 
+## Service Management (systemctl)
+
+The assistant can list, query, start, stop, and restart systemd services that
+run on the same host.  For security, **only** services explicitly listed in the
+`ALLOWED_SERVICES` environment variable can be touched.
+
+### 1 – Configure the allowlist
+
+Add `ALLOWED_SERVICES` to your `.env` file with a comma-separated list of the
+exact `*.service` unit names you want the bot to be able to manage:
+
+```
+ALLOWED_SERVICES=myapp.service,worker.service,nginx.service
+```
+
+Service names that are not in this list are invisible to the agent.
+
+### 2 – Grant passwordless sudo for the three control verbs
+
+Reading service status (`list_services`, `get_service_status`) does not require
+elevated privileges.  Starting, stopping, and restarting services do require
+`sudo`.  Create a dedicated sudoers drop-in file so the OS user that runs the
+assistant can call those verbs without a password:
+
+```bash
+sudo visudo -f /etc/sudoers.d/telegram-assistant
+```
+
+Paste the following, replacing `botuser` with the actual OS user name and
+adjusting the path to `systemctl` if needed (run `which systemctl` to check):
+
+```
+botuser ALL=(ALL) NOPASSWD: \
+    /bin/systemctl start *, \
+    /bin/systemctl stop *, \
+    /bin/systemctl restart *
+```
+
+Verify the file is syntactically valid:
+
+```bash
+sudo visudo -c -f /etc/sudoers.d/telegram-assistant
+```
+
+> **Security note**: The sudoers rule uses a `*` wildcard for the unit name
+> because sudo matches argument patterns before the software allowlist runs.
+> The real gate is the `ALLOWED_SERVICES` variable in your `.env` – the agent
+> will refuse to act on any service not in that list, regardless of what sudo
+> would permit.
+
+### Available agent tools
+
+| Tool | Description |
+|---|---|
+| `list_services` | Lists all configured services and their active state |
+| `get_service_status` | Detailed status (active/sub/load state + description) |
+| `start_service` | Starts a service |
+| `stop_service` | Stops a service |
+| `restart_service` | Restarts a service |
+
 ## TODO 
 - add google calendar integration
 - implement retrival mode
