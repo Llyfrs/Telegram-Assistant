@@ -20,8 +20,6 @@ class BotData(Enum):
 
 
 
-    LOCATION = "location"
-
     EMAIL_CHAT_ID = "email_chat_id"
 
     MESSAGE_HISTORY = "message_history"

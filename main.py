@@ -17,7 +17,6 @@ from enums.database import DatabaseConstants
 from modules.calendar import Calendar
 from modules.database import MongoDB, Document
 import structures  # Import triggers Document subclass registration
-from modules.location_manager import LocationManager
 from modules.memory import Memory
 
 from modules.timetable import TimeTable
@@ -65,8 +64,6 @@ if __name__ == '__main__':
 
     ## loop = asyncio.get_event_loop()
     ## loop.run_until_complete(load_commands())
-
-    application.bot_data[BotData.LOCATION] = LocationManager(history_size=7)
 
     application.bot_data[BotData.FILE_MANAGER] = init_file_manager()
 

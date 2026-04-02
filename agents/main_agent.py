@@ -16,7 +16,6 @@ from modules.bot import Bot
 from modules.calendar import Calendar
 from modules.database import ValkeyDB
 from modules.file_system import DiskFileSystem
-from modules.location_manager import LocationManager
 from modules.memory import Memory
 from modules.reminder import seconds_until, calculate_seconds, Reminders
 from utils.logging import get_logger
@@ -100,83 +99,6 @@ def instructions(application: Application) -> str:
 
 
     new_prompt += f"\n\n Current time: {get_current_time()} where date format is dd/mm/yyyy\n"
-
-    location_manager : LocationManager = application.bot_data.get(BotData.LOCATION, None)
-
-    if location_manager:
-        new_prompt += f"\n\nLOCATION DATA \n\n"
-
-        new_prompt += f"List of all static locations:\n"
-        new_prompt += ("Users create locations defined by name, description, latitude, longitude, and radius. "
-                       "These areas can overlap or be nested (e.g., a 'house' location within a larger 'city' location). "
-                       "The user's current location is the defined location whose center is closest, "
-                       "among all such locations whose radius they are currently within")
-
-        for loc in location_manager.get_static_locations():
-            new_prompt += f"\n- {loc.name}: {loc.description} (Lat: {loc.latitude}, Lon: {loc.longitude}, Radius: {loc.radius}m)"
-
-        new_prompt += "End of static locations.\n\n"
-
-        new_prompt += f"Detailed user location history for the past two days:\n\n"
-
-        time_spend = {}
-        duration_total = timedelta()
-        for record in location_manager.get_location_history():
-
-            entered_text = record.entered.strftime("%Y-%m-%d %H:%M")
-            exited_text = record.exited.strftime("%Y-%m-%d %H:%M")
-            duration = record.exited - record.entered
-            current_date = record.entered.date()
-
-
-            duration_total = duration_total + duration
-
-            if record.location:
-                time_spend[record.location.name] = time_spend.get(record.location.name, timedelta()) + duration
-            else:
-                time_spend["Unknown"] = time_spend.get("Unknown", timedelta()) + duration
-
-            # Insert a date separator if the date changed
-            if current_date < ( date.today() - timedelta(days=1)):
-                continue
-
-            if record.location:
-                location_name = record.location.name
-            else:
-                location_name = "Unknown Location (no name provided)"
-
-            new_prompt += (
-                f"Location: `{location_name}`\n"
-                f"Entered: {entered_text}\n"
-                f"Exited:  {exited_text}\n"
-                f"Duration: {duration}\n\n"
-            )
-
-        ### % of time spend in each location
-        new_prompt += f"Total time spend over at locations in the last {location_manager.history_size} days:\n"
-        for location, duration in time_spend.items():
-            percentage = (duration / duration_total) * 100 if duration_total > timedelta() else 0
-            new_prompt += f"- `{location}`: {str(duration).split('.')[0]} ({percentage:.2f}%)\n"
-
-
-        new_prompt += "End of location history.\n\n"
-
-        new_prompt += f"This is data about the user's current status, if in undefined location it probably means they are on the move. Check speed for reference."
-        new_prompt += f"\nCurrent user position (latitude, longitude): {location_manager.get_last_location()}\n"
-
-        current_location = location_manager.get_current_location()
-
-        # print(current_location)
-
-        location_name_text = ""
-        if current_location:
-            location_name_text = "User is outside of any defined location" if not current_location.location else f"User is currently in: `{current_location.location.name}`"
-            duration = datetime.now() - current_location.entered
-            location_name_text += f" they been there for period of {str(duration).split('.')[0]} (hours:minutes:seconds)  "
-
-        new_prompt += f"{location_name_text}"
-        new_prompt += f"\nUser current speed is {location_manager.speed:02} km/h\n" if location_manager.speed > 1.2 else "\nUser is currently stationary.\n"
-
 
     calendar : Calendar = application.bot_data.get(BotData.CALENDAR, None)
 
@@ -288,7 +210,6 @@ def initialize_main_agent(application: Application):
     reminder =  Reminders(application.bot)
     application.bot_data[BotData.REMINDER] = reminder
 
-    location : LocationManager = application.bot_data.get(BotData.LOCATION, None)
     memory : Memory = application.bot_data.get(BotData.MEMORY, None)
     file_manager : DiskFileSystem = application.bot_data.get(BotData.FILE_MANAGER, None)
 
@@ -423,11 +344,6 @@ def initialize_main_agent(application: Application):
                 description="Sends a Markdown-formatted message to the user's primary Telegram chat. "
                 "Use this for any user-facing response.",
                 function=send_telegram_message,
-            ),
-            Tool(strict=False, 
-                name="remove_location",
-                description="Removes a static location from the system by its name",
-                function=location.remove_static_location
             ),
             ## File Manager Tools
             Tool(strict=False,

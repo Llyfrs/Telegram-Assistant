@@ -57,8 +57,6 @@ fonttools==4.61.0
 frozenlist==1.8.0
 fsspec==2025.5.1
 genai-prices
-geographiclib==2.0
-geopy==2.4.1
 google==3.0.0
 google-api-core==2.24.1
 google-api-python-client==2.161.0
