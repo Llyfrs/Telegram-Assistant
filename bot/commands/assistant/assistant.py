@@ -45,7 +45,10 @@ class Assistant(Command):
 
     @classmethod
     def handler(cls, app):
-        pass  # Disabled: no longer reacts to incoming messages
+        app.add_handler(MessageHandler(
+            (filters.TEXT | filters.PHOTO | filters.VOICE) & ~filters.COMMAND, 
+            Assistant.handle
+        ), group=0)
 
     @classmethod
     async def handle(cls, update: Update, context: ContextTypes.DEFAULT_TYPE):
