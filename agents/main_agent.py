@@ -41,7 +41,7 @@ from modules.service_manager import (
 logger = get_logger(__name__)
 
 provider = OpenRouterProvider(api_key=os.getenv("OPENROUTER_API_KEY"))
-model = OpenRouterModel('mistralai/devstral-2512:free', provider=provider)
+model = OpenRouterModel('z-ai/glm-5v-turbo', provider=provider)
 
 
 def main_agent_system_prompt() -> str:
