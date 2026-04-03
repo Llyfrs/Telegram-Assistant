@@ -1,32 +1,31 @@
 import asyncio
 import os
-from datetime import datetime, timedelta, date
-from typing import Optional
+from datetime import datetime, timedelta
+from typing import Any, List, Optional
 
 from pydantic_ai import Agent, Tool
+from pydantic_ai.messages import TextPart, ToolCallPart, ToolReturnPart
 from pydantic_ai.models.openrouter import OpenRouterModel
 from pydantic_ai.providers.openrouter import OpenRouterProvider
-from telegram.ext import Application
+from telegram.ext import Application, ContextTypes
 
-from bot.commands.assistant.assistant import get_current_time
 from bot.watchers.email_summary import blocking_add_event
 from enums.bot_data import BotData
 from enums.database import DatabaseConstants
 from modules.bot import Bot
 from modules.calendar import Calendar
-from modules.database import ValkeyDB
+from modules.database import MongoDB, ValkeyDB
 from modules.file_system import DiskFileSystem
 from modules.memory import Memory
-from modules.reminder import seconds_until, calculate_seconds, Reminders
+from modules.reminder import Reminders, calculate_seconds, seconds_until
 from utils.logging import get_logger
 
-# Import tools that were missing in local but present in remote
 from modules.time_capsule import create_capsule as create_time_capsule
 from modules.habits import (
     create_habit as create_habit_tool,
     get_active_habits as list_habits_tool,
     deactivate_habit as remove_habit_tool,
-    get_habit_stats as get_habit_stats_tool
+    get_habit_stats as get_habit_stats_tool,
 )
 from modules.habit_heatmap import generate_habit_heatmap as generate_heatmap_tool
 
@@ -34,7 +33,7 @@ from modules.habit_heatmap import generate_habit_heatmap as generate_heatmap_too
 logger = get_logger(__name__)
 
 provider = OpenRouterProvider(api_key=os.getenv("OPENROUTER_API_KEY"))
-model = OpenRouterModel('z-ai/glm-5v-turbo', provider=provider)
+model = OpenRouterModel("z-ai/glm-5v-turbo", provider=provider)
 
 
 def main_agent_system_prompt() -> str:
@@ -73,11 +72,13 @@ The user can't directly access the file system.
 Do not invent capabilities you don't have or offer actions/questions you can't fulfill.
 """
 
+
 def instructions(application: Application) -> str:
     """
     Returns the instructions for the main agent.
     This function is used to get the instructions for the main agent.
     """
+    from bot.commands.assistant.assistant import get_current_time
 
     new_prompt = ""
 
@@ -87,18 +88,16 @@ def instructions(application: Application) -> str:
         " Do not assume that text replies are delivered automatically."
     )
 
-    new_prompt += ("\n\n Bellow provided context is live collection of data about the user, and general state of systems."
-                   "Use this information when it's relevant to better assist the user, and to compile with their preferences. ")
-
+    new_prompt += (
+        "\n\n Bellow provided context is live collection of data about the user, and general state of systems."
+        "Use this information when it's relevant to better assist the user, and to compile with their preferences. "
+    )
 
     new_prompt += f"\n\n Current time: {get_current_time()} where date format is dd/mm/yyyy\n"
 
-    calendar : Calendar = application.bot_data.get(BotData.CALENDAR, None)
-
+    calendar: Calendar = application.bot_data.get(BotData.CALENDAR, None)
 
     events = calendar.get_events(10)
-
-    # print(events)
 
     new_prompt += "\n\nCALENDAR DATA\n\n"
 
@@ -108,64 +107,57 @@ def instructions(application: Application) -> str:
 
     new_prompt += f"The {len(events)} closest upcoming events (more may be planned later):\n"
     for event in events:
-        summary = event.get('summary', 'No Title')
+        summary = event.get("summary", "No Title")
 
-        # Extract raw start/end dicts
-        raw_start = event.get('start', {})
-        raw_end = event.get('end', {})
+        raw_start = event.get("start", {})
+        raw_end = event.get("end", {})
 
-        # Determine start string
-        if 'dateTime' in raw_start:
-            # parse ISO datetime
-            start_dt = datetime.fromisoformat(raw_start['dateTime'])
+        if "dateTime" in raw_start:
+            start_dt = datetime.fromisoformat(raw_start["dateTime"])
             start_str = start_dt.strftime("%Y-%m-%d %H:%M")
-        elif 'date' in raw_start:
-            # all-day event
-            start_date = datetime.fromisoformat(raw_start['date'])
+        elif "date" in raw_start:
+            start_date = datetime.fromisoformat(raw_start["date"])
             start_str = start_date.strftime("%Y-%m-%d") + " (All day)"
         else:
             start_str = "Unknown start"
 
-        # Determine end string
-        if 'dateTime' in raw_end:
-            end_dt = datetime.fromisoformat(raw_end['dateTime'])
+        if "dateTime" in raw_end:
+            end_dt = datetime.fromisoformat(raw_end["dateTime"])
             end_str = end_dt.strftime("%Y-%m-%d %H:%M")
-        elif 'date' in raw_end:
-            # all-day event end date is exclusive per Google Calendar API:
-            #  end_date - 1 day is last day of event
-            end_date = datetime.fromisoformat(raw_end['date'])
+        elif "date" in raw_end:
+            end_date = datetime.fromisoformat(raw_end["date"])
             end_str = (end_date - timedelta(days=1)).strftime("%Y-%m-%d") + " (All day)"
         else:
             end_str = None
 
-        # Build the line
         if end_str:
             new_prompt += f"- {summary} (Start: {start_str}, End: {end_str})\n"
         else:
             new_prompt += f"- {summary} (Start: {start_str})\n"
 
-    # print(new_prompt)
     return new_prompt
+
 
 def get_memory(application: Application) -> str:
     new_prompt = "\n\nZEP MEMORY DATA\n\n"
 
-    memory : Memory = application.bot_data.get(BotData.MEMORY, None)
+    memory: Memory = application.bot_data.get(BotData.MEMORY, None)
 
     mem = memory.get_memory()["context"]
 
     if mem is None:
         return "No memory data available."
-    else:
 
-        mem = ("MEMORY DATA\n\n"
-               "These are snippets of memory that should be most relevant to the current conversation. "
-               "It is important to know that they do not include all memory stored. "
-               "They also self update as other parts of the context, and you do not see previous verions."
-               "The text is relative to the date attached to it, so `today` next to date of 13th of May, means today in that text is 13th of May and not actually current date\n\n") + mem
+    mem = (
+        "MEMORY DATA\n\n"
+        "These are snippets of memory that should be most relevant to the current conversation. "
+        "It is important to know that they do not include all memory stored. "
+        "They also self update as other parts of the context, and you do not see previous verions."
+        "The text is relative to the date attached to it, so `today` next to date of 13th of May, means today in that text is 13th of May and not actually current date\n\n"
+    ) + mem
 
-        # print(mem)
-        return mem
+    return mem
+
 
 def get_memory_files(application: Application) -> str:
     """
@@ -175,7 +167,7 @@ def get_memory_files(application: Application) -> str:
 
     new_prompt = "\n\nMEMORY FILES (/memory) \n\n"
 
-    file_manager : DiskFileSystem = application.bot_data.get(BotData.FILE_MANAGER, None)
+    file_manager: DiskFileSystem = application.bot_data.get(BotData.FILE_MANAGER, None)
 
     if not file_manager:
         return "No file manager available."
@@ -193,232 +185,294 @@ def get_memory_files(application: Application) -> str:
     return new_prompt
 
 
-def initialize_main_agent(application: Application):
+class MainAgent:
+    """
+    Wraps the pydantic-ai Agent with internal message history and a single entry point `call`.
+    """
 
+    def __init__(self, application: Application) -> None:
+        self._application = application
+        self._message_history: List[Any] = []
+        self._agent: Agent
+
+        reminder = Reminders(application.bot)
+        application.bot_data[BotData.REMINDER] = reminder
+
+        memory: Memory = application.bot_data.get(BotData.MEMORY, None)
+        file_manager: DiskFileSystem = application.bot_data.get(BotData.FILE_MANAGER, None)
+
+        loop = asyncio.get_event_loop()
+
+        def ensure_primary_bot() -> Optional[Bot]:
+            bot_wrapper: Optional[Bot] = application.bot_data.get(BotData.BOT)
+
+            if bot_wrapper:
+                return bot_wrapper
+
+            chat_id = ValkeyDB().get_serialized(DatabaseConstants.MAIN_CHAT_ID, None)
+
+            if chat_id is None:
+                return None
+
+            if isinstance(chat_id, str):
+                try:
+                    chat_id = int(chat_id)
+                except ValueError:
+                    logger.error("Stored chat ID is not a valid integer: %s", chat_id)
+                    return None
+
+            bot_wrapper = Bot(application.bot, chat_id)
+            application.bot_data[BotData.BOT] = bot_wrapper
+            return bot_wrapper
+
+        def send_telegram_message(text: str, markdown: bool = True, clean: bool = False) -> str:
+            bot_wrapper = ensure_primary_bot()
+
+            if bot_wrapper is None:
+                warning = "Main chat ID is not configured; unable to deliver Telegram message."
+                logger.warning(warning)
+                return warning
+
+            async def _send():
+                await bot_wrapper.send(text, markdown=markdown, clean=clean)
+
+            future = asyncio.run_coroutine_threadsafe(_send(), loop)
+
+            try:
+                future.result()
+            except Exception as exc:  # pragma: no cover - safety net
+                logger.error("Error while sending Telegram message: %s", exc)
+                return f"Failed to send message: {exc}"
+
+            if memory:
+                try:
+                    memory.add_message(role="Telegram Assistant", content=text, role_type="assistant")
+                except Exception as exc:  # pragma: no cover - defensive
+                    logger.error("Failed to persist assistant message to memory: %s", exc)
+
+            return "Message sent to Telegram."
+
+        def generate_heatmap(habit_id: str, period: str = "last_30_days") -> str:
+            bot_wrapper = ensure_primary_bot()
+
+            if bot_wrapper is None:
+                warning = "Main chat ID is not configured; unable to deliver heatmap image."
+                logger.warning(warning)
+                return warning
+
+            buf = generate_heatmap_tool(habit_id=habit_id, period=period)
+            if buf is None:
+                return "Failed to generate heatmap (habit not found or rendering error)."
+
+            async def _send():
+                await bot_wrapper.send_photo(
+                    buf,
+                    caption=f"Heatmap for `{habit_id}` ({period})",
+                    markdown=True,
+                    filename=f"habit_{habit_id}_{period}.png",
+                )
+
+            future = asyncio.run_coroutine_threadsafe(_send(), loop)
+            try:
+                future.result()
+            except Exception as exc:  # pragma: no cover - safety net
+                logger.error("Error while sending heatmap to Telegram: %s", exc)
+                return f"Failed to send heatmap: {exc}"
+
+            return "Heatmap sent to Telegram."
+
+        self._agent = Agent(
+            name="Main Agent",
+            model=model,
+            tools=[
+                Tool(
+                    strict=False,
+                    name="seconds_until",
+                    description="Returns number seconds remaining to provided date. Date format has to be %Y-%m-%d %H:%M:%S. ",
+                    function=seconds_until,
+                ),
+                Tool(
+                    strict=False,
+                    name="convert_to_seconds",
+                    description="Converts days, hours, minutes and seconds to just seconds.",
+                    function=calculate_seconds,
+                ),
+                Tool(
+                    strict=False,
+                    name="create_reminder",
+                    description="Creates a reminder that will notify the user after a specified number of seconds. "
+                    "This function is non blocking and will create a "
+                    "new thread that notifies the user automatically.",
+                    function=reminder.add_reminder,
+                ),
+                Tool(
+                    strict=False,
+                    name="cancel_reminder",
+                    description="Cancels reminders specified by their IDs.",
+                    function=reminder.remove_reminders,
+                ),
+                Tool(
+                    strict=False,
+                    name="get_reminders",
+                    description="Returns list of all active reminders.",
+                    function=reminder.get_reminders,
+                ),
+                Tool(
+                    strict=False,
+                    name="create_event",
+                    description="Creates an event in a the users google calendar. "
+                    "This is for events that require the user knows about them in advance and needs to plan around. "
+                    "unlike reminders that are set and forget.",
+                    function=blocking_add_event,
+                ),
+                Tool(
+                    strict=False,
+                    name="send_telegram_message",
+                    description="Sends a Markdown-formatted message to the user's primary Telegram chat. "
+                    "Use this for any user-facing response.",
+                    function=send_telegram_message,
+                ),
+                Tool(
+                    strict=False,
+                    name="shell",
+                    description="Execute shell-style file commands. "
+                    "Supports: mkdir, ls, cat, rm, touch, mv, cp, tree, echo >/>> file, find",
+                    function=file_manager.shell,
+                ),
+                Tool(
+                    strict=False,
+                    name="create_time_capsule",
+                    description="Creates a time capsule - a message to the user's future self. "
+                    "Use this when the user wants to send a message, reminder, or note to themselves "
+                    "at a future date (weeks, months, or even years ahead). "
+                    "Unlike reminders which are task-oriented, time capsules are reflective messages "
+                    "that will be delivered with distinctive formatting.",
+                    function=create_time_capsule,
+                ),
+                Tool(
+                    strict=False,
+                    name="create_habit",
+                    description="Creates a new habit to track daily. "
+                    "habit_type: 'boolean' for yes/no habits, 'count' for quantity tracking. "
+                    "options: for count type, list of button options (e.g., ['0', '1-2', '3-4', '5+']). "
+                    "color: pick a color that matches the habit theme - "
+                    "blue for calm/mindfulness, green for health/fitness, purple for creativity, "
+                    "orange for productivity, red for intensity, cyan for hydration, pink for self-care. "
+                    "Available colors: green, blue, purple, orange, red, cyan, pink.",
+                    function=create_habit_tool,
+                ),
+                Tool(
+                    strict=False,
+                    name="list_habits",
+                    description="Lists all active habits being tracked for the user.",
+                    function=list_habits_tool,
+                ),
+                Tool(
+                    strict=False,
+                    name="remove_habit",
+                    description="Deactivates a habit by its ID. The habit will no longer appear in daily check-ins.",
+                    function=remove_habit_tool,
+                ),
+                Tool(
+                    strict=False,
+                    name="get_habit_stats",
+                    description="Gets statistics for a habit. "
+                    "For boolean habits: completion rate, current streak, best streak. "
+                    "For count/numeric habits: average, trend (improving/declining), distribution, min/max values. "
+                    "days: number of days to look back (default 30).",
+                    function=get_habit_stats_tool,
+                ),
+                Tool(
+                    strict=False,
+                    name="generate_heatmap",
+                    description="Generates a GitHub-style heatmap visualization for a habit and sends it as an image. "
+                    "habit_id: the habit to visualize. "
+                    "period: 'last_30_days', 'last_365_days', 'month:YYYY-MM', or 'year:YYYY'.",
+                    function=generate_heatmap,
+                ),
+            ],
+        )
+
+        @self._agent.system_prompt
+        def _system_prompt_warper() -> str:
+            return main_agent_system_prompt()
+
+        @self._agent.instructions
+        def _instruction_warper() -> str:
+            return instructions(application)
+
+        @self._agent.instructions
+        def get_memory_wrapper() -> str:
+            return get_memory(application)
+
+        @self._agent.instructions
+        def get_memory_files_wrapper() -> str:
+            return get_memory_files(application)
+
+    @property
+    def model(self):
+        return self._agent.model
+
+    @model.setter
+    def model(self, value) -> None:
+        self._agent.model = value
+
+    def clear_history(self) -> None:
+        self._message_history = []
+
+    async def call(self, context: ContextTypes.DEFAULT_TYPE, message_parts: list) -> None:
+        response = await self._agent.run(message_parts, message_history=self._message_history)
+        self._message_history = response.all_messages()
+
+        memory: Memory = context.bot_data.get(BotData.MEMORY, None)
+        bot: Optional[Bot] = context.bot_data.get(BotData.BOT)
+
+        tool_calls = {}
+        bot_output = ""
+        for msg in response.new_messages():
+            logger.debug("Message: %s", msg)
+            parts = msg.parts
+            for part in parts:
+                if isinstance(part, ToolCallPart):
+                    tool_calls[part.tool_call_id] = {
+                        "name": part.tool_name,
+                        "args": part.args,
+                    }
+
+                if isinstance(part, ToolReturnPart):
+                    tool_calls[part.tool_call_id]["output"] = part.content
+
+                if isinstance(part, TextPart):
+                    bot_output += part.content + "\n"
+
+        for _tool_call_id, tool_call in tool_calls.items():
+            content = f"{tool_call['name']}({tool_call['args']}) => {tool_call.get('output', '')}"
+
+            if len(content) > 2400:
+                continue
+
+            if memory:
+                memory.add_message(
+                    role=tool_call["name"],
+                    content=f"{tool_call['name']}({tool_call['args']}) => {tool_call['output']}",
+                    role_type="tool",
+                )
+
+        db = MongoDB()
+        if db.get(DatabaseConstants.DEBUG, False) and bot is not None:
+            for _tool_call_id, tool_call in tool_calls.items():
+                await bot.send(f"`{tool_call['name']}({tool_call['args']}) => {tool_call['output']}`")
+
+            await bot.send(f"Generated: `{bot_output}`")
+
+        if not any(call.get("name") == "send_telegram_message" for call in tool_calls.values()):
+            logger.warning("Direct Telegram request completed without calling send_telegram_message.")
+
+
+def initialize_main_agent(application: Application) -> None:
     """
     Initializes the main agent with the OpenRouter model and tools.
     This function should be called at the start of the application.
     """
-
-    reminder =  Reminders(application.bot)
-    application.bot_data[BotData.REMINDER] = reminder
-
-    memory : Memory = application.bot_data.get(BotData.MEMORY, None)
-    file_manager : DiskFileSystem = application.bot_data.get(BotData.FILE_MANAGER, None)
-
-
-    loop = asyncio.get_event_loop()
-
-    def ensure_primary_bot() -> Optional[Bot]:
-        bot_wrapper: Optional[Bot] = application.bot_data.get(BotData.BOT)
-
-        if bot_wrapper:
-            return bot_wrapper
-
-        chat_id = ValkeyDB().get_serialized(DatabaseConstants.MAIN_CHAT_ID, None)
-
-        if chat_id is None:
-            return None
-
-        if isinstance(chat_id, str):
-            try:
-                chat_id = int(chat_id)
-            except ValueError:
-                logger.error("Stored chat ID is not a valid integer: %s", chat_id)
-                return None
-
-        bot_wrapper = Bot(application.bot, chat_id)
-        application.bot_data[BotData.BOT] = bot_wrapper
-        return bot_wrapper
-
-    def send_telegram_message(text: str, markdown: bool = True, clean: bool = False) -> str:
-        bot_wrapper = ensure_primary_bot()
-
-        if bot_wrapper is None:
-            warning = "Main chat ID is not configured; unable to deliver Telegram message."
-            logger.warning(warning)
-            return warning
-
-        async def _send():
-            await bot_wrapper.send(text, markdown=markdown, clean=clean)
-
-        future = asyncio.run_coroutine_threadsafe(_send(), loop)
-
-        try:
-            future.result()
-        except Exception as exc:  # pragma: no cover - safety net
-            logger.error("Error while sending Telegram message: %s", exc)
-            return f"Failed to send message: {exc}"
-
-        if memory:
-            try:
-                memory.add_message(role="Telegram Assistant", content=text, role_type="assistant")
-            except Exception as exc:  # pragma: no cover - defensive
-                logger.error("Failed to persist assistant message to memory: %s", exc)
-
-        return "Message sent to Telegram."
-
-    def generate_heatmap(habit_id: str, period: str = "last_30_days") -> str:
-        """
-        Generate a habit heatmap and send it to the user's primary Telegram chat.
-
-        This returns a short status string for the LLM tool response (image is delivered via Telegram).
-        """
-        bot_wrapper = ensure_primary_bot()
-
-        if bot_wrapper is None:
-            warning = "Main chat ID is not configured; unable to deliver heatmap image."
-            logger.warning(warning)
-            return warning
-
-        buf = generate_heatmap_tool(habit_id=habit_id, period=period)
-        if buf is None:
-            return "Failed to generate heatmap (habit not found or rendering error)."
-
-        async def _send():
-            await bot_wrapper.send_photo(
-                buf,
-                caption=f"Heatmap for `{habit_id}` ({period})",
-                markdown=True,
-                filename=f"habit_{habit_id}_{period}.png",
-            )
-
-        future = asyncio.run_coroutine_threadsafe(_send(), loop)
-        try:
-            future.result()
-        except Exception as exc:  # pragma: no cover - safety net
-            logger.error("Error while sending heatmap to Telegram: %s", exc)
-            return f"Failed to send heatmap: {exc}"
-
-        return "Heatmap sent to Telegram."
-
-
-
-    main_agent = Agent(
-        name="Main Agent",
-        model=model,
-        tools=[
-            Tool(strict=False, 
-                name="seconds_until",
-                description="Returns number seconds remaining to provided date. Date format has to be %Y-%m-%d %H:%M:%S. ",
-                function=seconds_until,
-            ),
-            Tool(strict=False, 
-                name="convert_to_seconds",
-                description="Converts days, hours, minutes and seconds to just seconds.",
-                function=calculate_seconds,
-            ),
-            Tool(strict=False, 
-                name="create_reminder",
-                description="Creates a reminder that will notify the user after a specified number of seconds. "
-                "This function is non blocking and will create a "
-                "new thread that notifies the user automatically.",
-                function=reminder.add_reminder
-            ),
-            Tool(strict=False, 
-                name="cancel_reminder",
-                description="Cancels reminders specified by their IDs.",
-                function=reminder.remove_reminders
-            ),
-            Tool(strict=False, 
-                name="get_reminders",
-                description="Returns list of all active reminders.",
-                function=reminder.get_reminders
-            ),
-            Tool(strict=False, 
-                name="create_event",
-                description="Creates an event in a the users google calendar. "
-                "This is for events that require the user knows about them in advance and needs to plan around. "
-                "unlike reminders that are set and forget.",
-                function=blocking_add_event,
-            ),
-            Tool(strict=False, 
-                name="send_telegram_message",
-                description="Sends a Markdown-formatted message to the user's primary Telegram chat. "
-                "Use this for any user-facing response.",
-                function=send_telegram_message,
-            ),
-            ## File Manager Tools
-            Tool(strict=False,
-                name="shell",
-                description="Execute shell-style file commands. "
-                "Supports: mkdir, ls, cat, rm, touch, mv, cp, tree, echo >/>> file, find",
-                function=file_manager.shell
-            ),
-            ## Time Capsule
-            Tool(strict=False, 
-                name="create_time_capsule",
-                description="Creates a time capsule - a message to the user's future self. "
-                "Use this when the user wants to send a message, reminder, or note to themselves "
-                "at a future date (weeks, months, or even years ahead). "
-                "Unlike reminders which are task-oriented, time capsules are reflective messages "
-                "that will be delivered with distinctive formatting.",
-                function=create_time_capsule
-            ),
-            ## Habit Tracking
-            Tool(strict=False, 
-                name="create_habit",
-                description="Creates a new habit to track daily. "
-                "habit_type: 'boolean' for yes/no habits, 'count' for quantity tracking. "
-                "options: for count type, list of button options (e.g., ['0', '1-2', '3-4', '5+']). "
-                "color: pick a color that matches the habit theme - "
-                "blue for calm/mindfulness, green for health/fitness, purple for creativity, "
-                "orange for productivity, red for intensity, cyan for hydration, pink for self-care. "
-                "Available colors: green, blue, purple, orange, red, cyan, pink.",
-                function=create_habit_tool
-            ),
-            Tool(strict=False, 
-                name="list_habits",
-                description="Lists all active habits being tracked for the user.",
-                function=list_habits_tool
-            ),
-            Tool(strict=False, 
-                name="remove_habit",
-                description="Deactivates a habit by its ID. The habit will no longer appear in daily check-ins.",
-                function=remove_habit_tool
-            ),
-            Tool(strict=False, 
-                name="get_habit_stats",
-                description="Gets statistics for a habit. "
-                "For boolean habits: completion rate, current streak, best streak. "
-                "For count/numeric habits: average, trend (improving/declining), distribution, min/max values. "
-                "days: number of days to look back (default 30).",
-                function=get_habit_stats_tool
-            ),
-            Tool(strict=False, 
-                name="generate_heatmap",
-                description="Generates a GitHub-style heatmap visualization for a habit and sends it as an image. "
-                "habit_id: the habit to visualize. "
-                "period: 'last_30_days', 'last_365_days', 'month:YYYY-MM', or 'year:YYYY'.",
-                function=generate_heatmap
-            ),
-
-        ],
-    )
-
-
-    @main_agent.system_prompt
-    def _system_prompt_warper() -> str:
-        return main_agent_system_prompt()
-
-    @main_agent.instructions
-    def _instruction_warper() -> str:
-        return instructions(application)
-
-    @main_agent.instructions
-    def get_memory_wrapper() -> str:
-        return get_memory(application)
-
-    @main_agent.instructions
-    def get_memory_files_wrapper() -> str:
-        return get_memory_files(application)
-
-
-
-
-    # To long
-    # memory.add_message(role="System Instructions", content=MAIN_AGENT_SYSTEM_PROMPT + "\n\n" + instructions(application), role_type="system")
-
-    application.bot_data[BotData.MAIN_AGENT] = main_agent
-
+    application.bot_data[BotData.MAIN_AGENT] = MainAgent(application)
     logger.info("Main agent initialized.")

@@ -6,11 +6,13 @@ from modules.memory import Memory
 @command
 async def clear_thread(update, context):
     """ Clears the thread """
-    context.bot_data[BotData.MESSAGE_HISTORY] = []
+    main_agent = context.bot_data[BotData.MAIN_AGENT]
+    main_agent.clear_history()
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
         text="Thread cleared."
     )
 
-    memory : Memory = context.bot_data.get(BotData.MEMORY, None)
-    memory.clear_memory()
+    memory: Memory | None = context.bot_data.get(BotData.MEMORY, None)
+    if memory:
+        memory.clear_memory()

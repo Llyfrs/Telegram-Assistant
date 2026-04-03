@@ -1,6 +1,5 @@
 import os
 
-from pydantic_ai import Agent
 from pydantic_ai.models.openrouter import OpenRouterModel
 from pydantic_ai.providers.openrouter import OpenRouterProvider
 from telegram import Update
@@ -15,6 +14,7 @@ from telegram.ext import (
 
 from bot.classes.command import Command
 from bot.commands.time_table.time_table import cancel
+from agents.main_agent import MainAgent
 from enums.bot_data import BotData
 from utils.logging import get_logger
 
@@ -25,7 +25,7 @@ AWAITING_MODEL = 0
 
 async def start_model_switch(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Entry point - prompt user for model name."""
-    current_agent: Agent = context.bot_data.get(BotData.MAIN_AGENT)
+    current_agent: MainAgent | None = context.bot_data.get(BotData.MAIN_AGENT)
     current_model = getattr(current_agent.model, 'model_name', 'unknown') if current_agent else 'unknown'
     
     await update.message.reply_text(
@@ -54,7 +54,7 @@ async def handle_model_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
         new_model = OpenRouterModel(model_name, provider=provider)
         
         # Update the agent's model
-        agent: Agent = context.bot_data[BotData.MAIN_AGENT]
+        agent: MainAgent = context.bot_data[BotData.MAIN_AGENT]
         agent.model = new_model
         context.bot_data[BotData.MAIN_AGENT] = agent
         
