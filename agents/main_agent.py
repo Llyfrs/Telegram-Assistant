@@ -1,6 +1,6 @@
 import asyncio
 import os
-from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any, List, Optional
 
 from pydantic_ai import Agent, Tool
@@ -13,7 +13,6 @@ from bot.watchers.email_summary import blocking_add_event
 from enums.bot_data import BotData
 from enums.database import DatabaseConstants
 from modules.bot import Bot
-from modules.calendar import Calendar
 from modules.database import MongoDB, ValkeyDB
 from modules.file_system import DiskFileSystem
 from modules.memory import Memory
@@ -32,162 +31,40 @@ from modules.habit_heatmap import generate_habit_heatmap as generate_heatmap_too
 
 logger = get_logger(__name__)
 
+_MAIN_AGENT_PROMPT_PATH = Path(__file__).resolve().parent / "main_agent_prompt.md"
+
+
+def load_main_agent_system_prompt() -> str:
+    """Load the main agent system prompt from the markdown file next to this module."""
+    return _MAIN_AGENT_PROMPT_PATH.read_text(encoding="utf-8")
+
+
+MAX_AGENT_LOOPS = 10
+
+_AGENT_CONTINUE_PROMPT = (
+    "If this user message still needs another tool step, take it. "
+    "If you are done for this message—whether that was casual chat, a simple answer, or multi-step work—"
+    "use send_telegram_message when the user should see a reply, then call submit_solution with a short summary."
+)
+
+
+def submit_solution(summary: str = "") -> str:
+    """
+    Signals that this user message is fully handled for this run. Call once after any needed
+    send_telegram_message (or when no reply is needed). Not limited to formal tasks—casual chat counts.
+    """
+    logger.debug("submit_solution summary: %s", summary)
+    return "Turn complete. Episode ended."
+
+
 provider = OpenRouterProvider(api_key=os.getenv("OPENROUTER_API_KEY"))
 model = OpenRouterModel("z-ai/glm-5v-turbo", provider=provider)
 
 
-def main_agent_system_prompt() -> str:
-    """
-    Returns the system prompt for the main agent.
-    This function is used to get the system prompt for the main agent.
-    """
-    return """
-You are an integrated AI embedded in the user's computing environment and have broad latitude to take action. 
-Be proactively useful: determine the user's needs based on available context without asking them or prompting for how you can help. 
-The user is a developer—be direct, honest about your inner workings, and identify your own limitations and weaknesses to aid them in improving your capabilities. 
-
-Avoid unnecessary disclaimers (e.g., "as an AI, I cannot...") and never ask, “How can I help?” 
-Start interactions with relevant, context-aware actions or suggestions, considering the system, user, and world context. 
-Avoid performative empathy and filler phrases such as: “You’re absolutely right to call me out,” “I understand how you feel,” “Thanks for pointing that out,” or “That’s a great question!” 
-You may occasionally use humor, sarcasm, or playful jabs to aid clarity or rapport, but use them sparingly and avoid repeated or forced jokes. 
-Prioritize utility, insight, and clarity over charisma. 
-
-If you recognize unhealthy or unproductive user behavior patterns, push back once per pattern per conversation 
-(e.g., if user ignores advice to sleep, don’t repeat it again). 
-
-If the user starts a new conversation, assume program restart or chat clear; leverage all available context and tools to understand the environment. 
-
-Each user message starts with a timestamp (`Sent at HH:MM [user_message]`). 
-Use these to infer conversational flow, pauses, or day changes. 
-Do not include timestamps in your own responses; messages are always chronological, and time resets signal a new day. 
-
-Memory updates automatically based on user messages; you don't need to handle this manually. 
-
-Filework is in a sandboxed root directory:  
-- /daily for daily notes  
-- /memory for permanent text-based memory (keep files short for token limits)  
-- /logs/logs.txt for logs (mainly for debugging).  
-
-The user can't directly access the file system. 
-Do not invent capabilities you don't have or offer actions/questions you can't fulfill.
-"""
-
-
-def instructions(application: Application) -> str:
-    """
-    Returns the instructions for the main agent.
-    This function is used to get the instructions for the main agent.
-    """
-    from bot.commands.assistant.assistant import get_current_time
-
-    new_prompt = ""
-
-    new_prompt += (
-        "\n\nCommunication: Use the `send_telegram_message` tool to talk to the user."
-        " Telegram requests marked as direct will expect at least one call to this tool."
-        " Do not assume that text replies are delivered automatically."
-    )
-
-    new_prompt += (
-        "\n\n Bellow provided context is live collection of data about the user, and general state of systems."
-        "Use this information when it's relevant to better assist the user, and to compile with their preferences. "
-    )
-
-    new_prompt += f"\n\n Current time: {get_current_time()} where date format is dd/mm/yyyy\n"
-
-    calendar: Calendar = application.bot_data.get(BotData.CALENDAR, None)
-
-    events = calendar.get_events(10)
-
-    new_prompt += "\n\nCALENDAR DATA\n\n"
-
-    if not events:
-        new_prompt += "No upcoming events found in the calendar."
-        return new_prompt
-
-    new_prompt += f"The {len(events)} closest upcoming events (more may be planned later):\n"
-    for event in events:
-        summary = event.get("summary", "No Title")
-
-        raw_start = event.get("start", {})
-        raw_end = event.get("end", {})
-
-        if "dateTime" in raw_start:
-            start_dt = datetime.fromisoformat(raw_start["dateTime"])
-            start_str = start_dt.strftime("%Y-%m-%d %H:%M")
-        elif "date" in raw_start:
-            start_date = datetime.fromisoformat(raw_start["date"])
-            start_str = start_date.strftime("%Y-%m-%d") + " (All day)"
-        else:
-            start_str = "Unknown start"
-
-        if "dateTime" in raw_end:
-            end_dt = datetime.fromisoformat(raw_end["dateTime"])
-            end_str = end_dt.strftime("%Y-%m-%d %H:%M")
-        elif "date" in raw_end:
-            end_date = datetime.fromisoformat(raw_end["date"])
-            end_str = (end_date - timedelta(days=1)).strftime("%Y-%m-%d") + " (All day)"
-        else:
-            end_str = None
-
-        if end_str:
-            new_prompt += f"- {summary} (Start: {start_str}, End: {end_str})\n"
-        else:
-            new_prompt += f"- {summary} (Start: {start_str})\n"
-
-    return new_prompt
-
-
-def get_memory(application: Application) -> str:
-    new_prompt = "\n\nZEP MEMORY DATA\n\n"
-
-    memory: Memory = application.bot_data.get(BotData.MEMORY, None)
-
-    mem = memory.get_memory()["context"]
-
-    if mem is None:
-        return "No memory data available."
-
-    mem = (
-        "MEMORY DATA\n\n"
-        "These are snippets of memory that should be most relevant to the current conversation. "
-        "It is important to know that they do not include all memory stored. "
-        "They also self update as other parts of the context, and you do not see previous verions."
-        "The text is relative to the date attached to it, so `today` next to date of 13th of May, means today in that text is 13th of May and not actually current date\n\n"
-    ) + mem
-
-    return mem
-
-
-def get_memory_files(application: Application) -> str:
-    """
-    Returns the memory files for the main agent.
-    This function is used to get the memory files for the main agent.
-    """
-
-    new_prompt = "\n\nMEMORY FILES (/memory) \n\n"
-
-    file_manager: DiskFileSystem = application.bot_data.get(BotData.FILE_MANAGER, None)
-
-    if not file_manager:
-        return "No file manager available."
-
-    files = file_manager.list_dir("/memory")
-
-    if not files or isinstance(files, str):
-        return "No memory files available."
-
-    for file in files:
-        file_path = f"/memory/{file}"
-        content = file_manager.read_file(file_path)
-        new_prompt += f"### `{file}: `\n{content}\n\n"
-
-    return new_prompt
-
-
 class MainAgent:
     """
-    Wraps the pydantic-ai Agent with internal message history and a single entry point `call`.
+    Wraps the pydantic-ai Agent with internal message history and `call`, which runs up to
+    MAX_AGENT_LOOPS turns until the model calls submit_solution or the cap is reached.
     """
 
     def __init__(self, application: Application) -> None:
@@ -334,6 +211,16 @@ class MainAgent:
                 ),
                 Tool(
                     strict=False,
+                    name="submit_solution",
+                    description="Call once when you are done with this user message for this run. "
+                    "Not every message is a task—casual chat, questions, and small talk are normal; "
+                    "still call this after you have replied (send_telegram_message when the user should see text) "
+                    "or when no user-visible reply is needed. Pass a brief summary of what you did or said. "
+                    "Calling this ends the multi-step loop for this message.",
+                    function=submit_solution,
+                ),
+                Tool(
+                    strict=False,
                     name="shell",
                     description="Execute shell-style file commands. "
                     "Supports: mkdir, ls, cat, rm, touch, mv, cp, tree, echo >/>> file, find",
@@ -395,19 +282,7 @@ class MainAgent:
 
         @self._agent.system_prompt
         def _system_prompt_warper() -> str:
-            return main_agent_system_prompt()
-
-        @self._agent.instructions
-        def _instruction_warper() -> str:
-            return instructions(application)
-
-        @self._agent.instructions
-        def get_memory_wrapper() -> str:
-            return get_memory(application)
-
-        @self._agent.instructions
-        def get_memory_files_wrapper() -> str:
-            return get_memory_files(application)
+            return load_main_agent_system_prompt()
 
     @property
     def model(self):
@@ -420,15 +295,17 @@ class MainAgent:
     def clear_history(self) -> None:
         self._message_history = []
 
-    async def call(self, context: ContextTypes.DEFAULT_TYPE, message_parts: list) -> None:
-        response = await self._agent.run(message_parts, message_history=self._message_history)
-        self._message_history = response.all_messages()
-
+    async def _record_and_debug_response(
+        self,
+        context: ContextTypes.DEFAULT_TYPE,
+        response: Any,
+        bot: Optional[Bot],
+    ) -> dict[str, Any]:
         memory: Memory = context.bot_data.get(BotData.MEMORY, None)
-        bot: Optional[Bot] = context.bot_data.get(BotData.BOT)
-
-        tool_calls = {}
+        tool_calls: dict = {}
         bot_output = ""
+        had_submit_solution = False
+
         for msg in response.new_messages():
             logger.debug("Message: %s", msg)
             parts = msg.parts
@@ -438,6 +315,8 @@ class MainAgent:
                         "name": part.tool_name,
                         "args": part.args,
                     }
+                    if part.tool_name == "submit_solution":
+                        had_submit_solution = True
 
                 if isinstance(part, ToolReturnPart):
                     tool_calls[part.tool_call_id]["output"] = part.content
@@ -465,7 +344,43 @@ class MainAgent:
 
             await bot.send(f"Generated: `{bot_output}`")
 
-        if not any(call.get("name") == "send_telegram_message" for call in tool_calls.values()):
+        return {
+            "tool_calls": tool_calls,
+            "had_submit_solution": had_submit_solution,
+        }
+
+    async def call(self, context: ContextTypes.DEFAULT_TYPE, message_parts: list) -> None:
+        bot: Optional[Bot] = context.bot_data.get(BotData.BOT)
+        user_input: Any = message_parts
+        any_send_telegram = False
+        submitted = False
+
+        for iteration in range(MAX_AGENT_LOOPS):
+            response = await self._agent.run(user_input, message_history=self._message_history)
+            self._message_history = response.all_messages()
+
+            info = await self._record_and_debug_response(context, response, bot)
+            tool_calls = info["tool_calls"]
+
+            if any(call.get("name") == "send_telegram_message" for call in tool_calls.values()):
+                any_send_telegram = True
+
+            if info["had_submit_solution"]:
+                submitted = True
+                break
+
+            if iteration < MAX_AGENT_LOOPS - 1:
+                user_input = _AGENT_CONTINUE_PROMPT
+
+        if not submitted:
+            logger.warning(
+                "Main agent reached max loops (%s) without submit_solution; "
+                "send_telegram_message used in any iteration: %s",
+                MAX_AGENT_LOOPS,
+                any_send_telegram,
+            )
+
+        if not any_send_telegram:
             logger.warning("Direct Telegram request completed without calling send_telegram_message.")
 
 
