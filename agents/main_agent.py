@@ -13,7 +13,7 @@ from bot.watchers.email_summary import blocking_add_event
 from enums.bot_data import BotData
 from enums.database import DatabaseConstants
 from modules.bot import Bot
-from modules.database import MongoDB, ValkeyDB
+from modules.database import MongoDB
 from modules.file_system import DiskFileSystem
 from modules.memory import Memory
 from modules.reminder import Reminders, calculate_seconds, seconds_until
@@ -86,7 +86,7 @@ class MainAgent:
             if bot_wrapper:
                 return bot_wrapper
 
-            chat_id = ValkeyDB().get_serialized(DatabaseConstants.MAIN_CHAT_ID, None)
+            chat_id = MongoDB().get(DatabaseConstants.MAIN_CHAT_ID, None)
 
             if chat_id is None:
                 return None
@@ -221,10 +221,63 @@ class MainAgent:
                 ),
                 Tool(
                     strict=False,
-                    name="shell",
-                    description="Execute shell-style file commands. "
-                    "Supports: mkdir, ls, cat, rm, touch, mv, cp, tree, echo >/>> file, find",
-                    function=file_manager.shell,
+                    name="read_file",
+                    description="Read a file's contents with line numbers. "
+                    "Returns numbered lines (e.g. '  1|first line'). "
+                    "Use offset (1-based line number) and limit (number of lines) for large files. "
+                    "Always read a file before editing it with str_replace.",
+                    function=file_manager.read_file,
+                ),
+                Tool(
+                    strict=False,
+                    name="write_file",
+                    description="Create a new file or overwrite an existing file with the given content. "
+                    "Parent directories are created automatically. "
+                    "Use str_replace instead when making targeted edits to an existing file.",
+                    function=file_manager.write_file,
+                ),
+                Tool(
+                    strict=False,
+                    name="str_replace",
+                    description="Replace an exact string in a file. Provide old_str (the text to find) "
+                    "and new_str (the replacement). old_str must match exactly one location in the file. "
+                    "Include enough surrounding context (a few lines) in old_str to make it unique. "
+                    "Whitespace and indentation must match exactly. "
+                    "Always read_file first to see the current content before editing.",
+                    function=file_manager.str_replace,
+                ),
+                Tool(
+                    strict=False,
+                    name="list_directory",
+                    description="List files and directories at a path. "
+                    "Shows directories with a trailing '/' and files with their size. "
+                    "Omit path or pass empty string to list the root.",
+                    function=file_manager.list_dir,
+                ),
+                Tool(
+                    strict=False,
+                    name="create_directory",
+                    description="Create a directory and any missing parent directories.",
+                    function=file_manager.mkdir,
+                ),
+                Tool(
+                    strict=False,
+                    name="delete",
+                    description="Delete a file or directory. Directories are removed recursively.",
+                    function=file_manager.delete,
+                ),
+                Tool(
+                    strict=False,
+                    name="move",
+                    description="Move or rename a file or directory.",
+                    function=file_manager.move,
+                ),
+                Tool(
+                    strict=False,
+                    name="search_files",
+                    description="Search filenames and file contents for a query string. "
+                    "Returns matching filenames and content lines with line numbers.",
+                    function=file_manager.search,
                 ),
                 Tool(
                     strict=False,

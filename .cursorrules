@@ -17,3 +17,13 @@ logger.error("Failed: %s", error)           # Something went wrong
 - Use `%s` formatting, not f-strings (for lazy evaluation)
 - No `print()` statements - use `logger.debug()` instead
 
+# MongoDB
+
+Canonical API: [`modules/database.py`](modules/database.py).
+
+- Use **`MongoDB`** from `modules.database` for all database access. Do **not** instantiate **`MongoClient`** (or other PyMongo entry points) outside that module; the app uses a class-level singleton (`MongoDB._client` / `MongoDB._db`).
+- **Environment:** `MONGODB_URI`; optional `MONGODB_DATABASE` (defaults to `telegram_assistant`). Missing URI or connection failure falls back to in-memory storage — account for that when relying on Mongo-specific features.
+- **Key-value store:** `MongoDB.get` / `set` / `delete` / `list` (collection `kv_store`). Prefer **`DatabaseConstants`** in `enums.database` for shared keys (`MAIN_CHAT_ID`, `TORN_API_KEY`, etc.) instead of ad-hoc strings where applicable.
+- **Structured documents:** Subclass **`Document`**, set **`collection_name`** in `model_config` when the default pluralized name is wrong. Use **`save`**, **`find`**, **`find_one`**, **`delete_one`**, **`delete_many`**. Register indexes in **`ensure_indexes`** on the subclass; startup calls **`Document.ensure_all_indexes()`** (see `main.py`).
+- **Low-level PyMongo** (`_collection()`, `update_one`, `count_documents`, `create_index`): only in `modules/database.py`, inside **`ensure_indexes`** (e.g. TTL indexes), or when **`Document` has no wrapper** for the operation. Prefer extending **`Document`** or adding a method on the subclass if the same pattern repeats.
+- Prefer the name **`MongoDB`** over **`ValkeyDB`** (`ValkeyDB` is a backward-compatibility alias for the same class).

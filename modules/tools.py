@@ -67,7 +67,7 @@ def init_file_manager():
     file_manager = DiskFileSystem()
     file_manager.mkdir("memory")
     file_manager.mkdir("logs")
-    file_manager.create_file("logs/logs.txt", "Log file created")
+    file_manager.write_file("logs/logs.txt", "Log file created")
     file_manager.mkdir("daily")
 
     return file_manager

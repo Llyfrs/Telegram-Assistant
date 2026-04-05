@@ -1,8 +1,7 @@
-import os
 import re
-import shlex
 import shutil
 from pathlib import Path
+from typing import Optional
 
 
 class DiskFileSystem:
@@ -36,36 +35,95 @@ class DiskFileSystem:
         except Exception as e:
             return str(e)
 
-    def create_file(self, path: str, content=""):
-        """Creates a new file. If it exists, it overwrites it."""
-        return self.write_file(path, content)
-
-    def read_file(self, path: str):
+    def read_file(self, path: str, offset: Optional[int] = None, limit: Optional[int] = None) -> str:
+        """Read file contents with line numbers. Use offset/limit for large files."""
         try:
             target = self._resolve_path(path)
             if not target.exists():
-                return f"{path} not found"
+                return f"Error: {path} not found"
             if target.is_dir():
-                return f"{path} is a directory"
-            return target.read_text(encoding="utf-8")
-        except Exception as e:
-            return str(e)
+                return f"Error: {path} is a directory"
 
-    def write_file(self, path: str, content: str, append: bool = False):
+            all_lines = target.read_text(encoding="utf-8").splitlines()
+            total = len(all_lines)
+
+            start = 0
+            if offset is not None:
+                start = max(0, offset - 1)
+
+            end = total
+            if limit is not None:
+                end = min(total, start + limit)
+
+            selected = all_lines[start:end]
+            numbered = [f"{start + i + 1:>6}|{line}" for i, line in enumerate(selected)]
+            result = "\n".join(numbered)
+
+            shown = len(selected)
+            if shown < total:
+                result += f"\n[Read {shown} lines (lines {start + 1}-{end}) out of {total} total]"
+
+            return result
+        except Exception as e:
+            return f"Error: {e}"
+
+    def write_file(self, path: str, content: str) -> str:
+        """Create or overwrite a file. Parent directories are created automatically."""
         try:
             target = self._resolve_path(path)
             if target.exists() and target.is_dir():
-                return f"{path} is a directory"
+                return f"Error: {path} is a directory"
 
-            # Ensure parent directory exists
             target.parent.mkdir(parents=True, exist_ok=True)
-
-            mode = "a" if append else "w"
-            with open(target, mode, encoding="utf-8") as f:
-                f.write(content)
+            target.write_text(content, encoding="utf-8")
             return "OK"
         except Exception as e:
-            return str(e)
+            return f"Error: {e}"
+
+    def str_replace(self, path: str, old_str: str, new_str: str) -> str:
+        """Replace an exact string occurrence in a file.
+        
+        old_str must match exactly one location in the file. Include surrounding
+        lines in old_str to make it unique if there are multiple matches.
+        """
+        try:
+            target = self._resolve_path(path)
+            if not target.exists():
+                return f"Error: {path} not found"
+            if target.is_dir():
+                return f"Error: {path} is a directory"
+
+            content = target.read_text(encoding="utf-8")
+
+            count = content.count(old_str)
+            if count == 0:
+                return (
+                    "Error: No match found. The old_str was not found in the file. "
+                    "Make sure it matches the file content exactly, including whitespace and indentation."
+                )
+            if count > 1:
+                return (
+                    f"Error: Multiple matches found ({count} occurrences). "
+                    "Include more surrounding context in old_str to make it unique."
+                )
+
+            new_content = content.replace(old_str, new_str, 1)
+            target.write_text(new_content, encoding="utf-8")
+
+            new_lines = new_content.splitlines()
+            replacement_start = new_content.find(new_str)
+            line_num = new_content[:replacement_start].count("\n")
+
+            context_before = max(0, line_num - 2)
+            new_str_line_count = new_str.count("\n") + 1
+            context_after = min(len(new_lines), line_num + new_str_line_count + 2)
+
+            snippet_lines = new_lines[context_before:context_after]
+            numbered = [f"{context_before + i + 1:>6}|{line}" for i, line in enumerate(snippet_lines)]
+
+            return "OK\n" + "\n".join(numbered)
+        except Exception as e:
+            return f"Error: {e}"
 
     def delete(self, path: str):
         """Delete a file or directory at the given path.
@@ -126,22 +184,38 @@ class DiskFileSystem:
         except Exception as e:
             return str(e)
 
-    def list_dir(self, path: str):
-        """List files and directories in the given path / folder."""
+    def list_dir(self, path: str = "") -> str:
+        """List files and directories at the given path with type indicators and sizes."""
         try:
             if path == ".":
                 path = ""
             target = self._resolve_path(path)
-            
-            if not target.exists():
-                return f"{path} not found"
-            if not target.is_dir():
-                return f"{path} is a file"
 
-            # List relative names
-            return [p.name for p in target.iterdir()]
+            if not target.exists():
+                return f"Error: {path or '/'} not found"
+            if not target.is_dir():
+                return f"Error: {path} is not a directory"
+
+            entries = sorted(target.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower()))
+            lines = []
+            for entry in entries:
+                if entry.is_dir():
+                    lines.append(f"  {entry.name}/")
+                else:
+                    size = entry.stat().st_size
+                    if size < 1024:
+                        size_str = f"{size} B"
+                    elif size < 1024 * 1024:
+                        size_str = f"{size / 1024:.1f} KB"
+                    else:
+                        size_str = f"{size / (1024 * 1024):.1f} MB"
+                    lines.append(f"  {entry.name}  ({size_str})")
+
+            if not lines:
+                return "Directory is empty."
+            return "\n".join(lines)
         except Exception as e:
-            return str(e)
+            return f"Error: {e}"
 
     def search(self, query: str, case_sensitive: bool = False, regex: bool = False):
         try:
@@ -182,116 +256,9 @@ class DiskFileSystem:
         except Exception as e:
             return str(e)
 
-    def shell(self, command: str):
-        """Execute a shell-style file system command.
-        
-        Supported commands:
-            mkdir <path>           - Create directory
-            ls [path]              - List directory contents
-            cat <path>             - Read file contents
-            rm <path>              - Delete file or directory
-            touch <path>           - Create empty file
-            echo <content> > <path>  - Write to file
-            echo <content> >> <path> - Append to file
-            mv <src> <dest>        - Move/rename file or directory
-            cp <src> <dest>        - Copy file or directory
-            tree                   - Show directory tree
-            find <query>           - Search files by name or content
-        """
-        try:
-            parts = shlex.split(command)
-        except ValueError as e:
-            return f"Parse error: {e}"
-
-        if not parts:
-            return "No command provided"
-
-        cmd = parts[0].lower()
-        args = parts[1:]
-
-        # Handle echo with redirection specially
-        if cmd == "echo":
-            return self._handle_echo(command)
-
-        # Route to appropriate method
-        if cmd == "mkdir":
-            if not args:
-                return "mkdir: missing path"
-            return self.mkdir(args[0])
-
-        elif cmd == "ls":
-            path = args[0] if args else ""
-            return self.list_dir(path)
-
-        elif cmd == "cat":
-            if not args:
-                return "cat: missing path"
-            return self.read_file(args[0])
-
-        elif cmd == "rm":
-            if not args:
-                return "rm: missing path"
-            return self.delete(args[0])
-
-        elif cmd == "touch":
-            if not args:
-                return "touch: missing path"
-            return self.create_file(args[0], "")
-
-        elif cmd == "mv":
-            if len(args) < 2:
-                return "mv: missing source or destination"
-            return self.move(args[0], args[1])
-
-        elif cmd == "cp":
-            if len(args) < 2:
-                return "cp: missing source or destination"
-            return self.copy(args[0], args[1])
-
-        elif cmd == "tree":
-            return str(self)
-
-        elif cmd == "find":
-            if not args:
-                return "find: missing query"
-            return self.search(args[0])
-
-        else:
-            return f"Unknown command: {cmd}. Supported: mkdir, ls, cat, rm, touch, echo, mv, cp, tree, find"
-
-    def _handle_echo(self, command: str):
-        """Handle echo command with > or >> redirection."""
-        # Check for append (>>)
-        if ">>" in command:
-            parts = command.split(">>", 1)
-            append = True
-        elif ">" in command:
-            parts = command.split(">", 1)
-            append = False
-        else:
-            return "echo: missing redirection (> or >>)"
-
-        if len(parts) != 2:
-            return "echo: invalid syntax"
-
-        # Extract content from echo part (remove 'echo ' prefix)
-        echo_part = parts[0].strip()
-        if not echo_part.lower().startswith("echo "):
-            return "echo: invalid syntax"
-        
-        content = echo_part[5:].strip()
-        
-        # Remove surrounding quotes if present
-        if (content.startswith('"') and content.endswith('"')) or \
-           (content.startswith("'") and content.endswith("'")):
-            content = content[1:-1]
-
-        # Get the file path
-        file_path = parts[1].strip()
-        if not file_path:
-            return "echo: missing file path"
-
-        return self.write_file(file_path, content, append=append)
+    def tree(self) -> str:
+        """Show the full directory tree from the root."""
+        return str(self)
 
     def __str__(self):
         def recurse(dir_path: Path, prefix: str):
