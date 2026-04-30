@@ -1,23 +1,75 @@
 # Telegram-Assistant
 
-This is personal AI assistant that communicates with the user using Telegram. It's bit of a personal project that I decided to make public, so I am forced to put sensitive information such as keys somewhere else that in to the source code. This has been started way before agents like OpenClaw existed, and contains mix of many of the at the time SOTA aproachest to building a agent, though it is not always keep up to date. The project also includes many personal tools that help me in day to day organization. 
+This is a personal AI assistant that communicates with the user via Telegram. It’s a personal project that I decided to make public, so I’m forced to keep sensitive information (such as keys) outside of the source code. This project was started long before agents like OpenClaw existed, and it contains a mix of many then–state-of-the-art approaches to building an agent, though it is not always kept up to date. The project also includes many personal tools that help me with day-to-day organization.
+
+## Current Agentic Implementation
+
+The assistant runs in an agentic loop and is decoupled from the Telegram message-handling layer, so it can be invoked from anywhere in the codebase (not only from an incoming chat message). The agent communicates by calling `send_telegram_message`, and it ends the loop by calling `submit_solution` once it is done.
 
 ## TelegramCommands 
-- `toggle_retrival` - doesn't work yet
-- `toggle_debug` - Turns debug mode on allowing you to see what functions and tools where used and what their results where. Great to see if the AI actually did what it should have or if it just made stuff up.
-- `clear_thread` - Deletes current thread and creates new one, basically deleting current chat history from the AI memory. Important as right now the history grows until it reaches maximum tokens which can be expensive. 
+- **Slash commands registered in Telegram (appear in the `/` command picker)**:
+  - `/bounty` - Toggle Torn bounty monitor on/off.
+  - `/clear_thread` - Clear the AI conversation history (and memory graph, if enabled).
+  - `/company` - Open Torn company settings UI (currently training preferences).
+  - `/daily_checkin` - Manually trigger the daily habit check-in.
+  - `/email_here` - Set this chat as the destination for email notifications.
+  - `/live_message` - Create a message that updates every second (timer demo).
+  - `/model` - Switch the OpenRouter model used by the main agent.
+  - `/next` - Show your next timetable lesson today.
+  - `/now` - Show your current timetable lesson.
+  - `/ping` - Reply with `pong`.
+  - `/pong` - Reply with `ping`.
+  - `/q` - Save an encrypted private note (message is deleted after saving).
+  - `/racing` - Show Torn racing skill stats + predictions (with a graph when possible).
+  - `/set_torn_api_key <api_key>` - Set Torn API key for this bot instance.
+  - `/set_wolframalpha_app_id <app_id>` - Set WolframAlpha App ID (stored in DB).
+  - `/settings` - Open notification/settings toggles UI.
+  - `/stacking` - Toggle Torn stacking mode on/off.
+  - `/stock` - Send a Torn stock report.
+  - `/target` - Pick a suitable Torn target (targets list / hospital timing helper).
+  - `/time_table` - Add/manage timetable entries (interactive UI).
+  - `/train` - Send Torn training status.
+  - `/unwatch` - Stop the active `/watch` file watcher in this chat.
+  - `/watch [path]` - Live-watch a file under `storage/` and auto-update the message on changes.
+
+- **Utility slash commands (supported but not shown in the picker)**:
+  - `/cancel` - Cancel an in-progress interactive flow (used by `/watch`, `/model`, `/settings`, `/company`, `/time_table`).
 
 ## Function available to the bot 
-- `get_current_time` - return current UT datetime
-- `calculate_seconds` - calculates seconds, hopefully the AI can use this instead of doing math itself
-- `add_reminder` - adds reminder, that will send message to the user when it expires
-- `get_reminders` - returns list off all reminders and their indexes
-- `remove_reminders` - accepts array of indexes of reminders that are to be removed 
-- `calculate` - Uses wolfram alpha to calculate expressions. This is way to avoid the AI having to do math itself or use code interpreter to do it.
+- **AI tools (functions the main agent can call)**:
+  - `seconds_until` - Seconds remaining until a given datetime (`%Y-%m-%d %H:%M:%S`).
+  - `convert_to_seconds` - Convert days/hours/minutes/seconds into total seconds.
+  - `create_reminder` - Create a reminder that will message you later.
+  - `cancel_reminder` - Cancel reminders by ID.
+  - `get_reminders` - List active reminders.
+  - `create_event` - Create a Google Calendar event.
+  - `send_telegram_message` - Send a message to the primary Telegram chat (agent’s main output).
+  - `read_file` - Read a file from `storage/` with line numbers.
+  - `write_file` - Create/overwrite a file under `storage/`.
+  - `str_replace` - Replace a specific string in an existing file under `storage/`.
+  - `list_directory` - List directory contents under `storage/`.
+  - `create_directory` - Create a directory under `storage/`.
+  - `delete` - Delete a file/folder under `storage/` (recursive for directories).
+  - `move` - Move/rename a file/folder under `storage/`.
+  - `search_files` - Search filenames and contents under `storage/`.
+  - `create_time_capsule` - Schedule a “message to future self” delivery.
+  - `create_habit` - Create a new daily habit to track.
+  - `list_habits` - List active habits.
+  - `remove_habit` - Deactivate a habit.
+  - `get_habit_stats` - Get habit stats (streaks / averages / trends).
+  - `generate_heatmap` - Generate & send a habit heatmap image.
+  - `submit_solution` - Internal “done” signal for the agent loop.
+
+- **Non-slash handlers (always on)**:
+  - **Assistant chat**: any non-command text/photo/voice message is routed to the main AI agent.
+  - **File upload to memory**: uploading a text-like file (txt/md/json/xml/js/yaml) adds its contents into memory.
 
 ## Thoughts and discoveries
 
 ### Function output 
+
+> This is all from time when function calling was like two weeks old, it has come long way since then and AI models are way smarter. 
+
 Looks like function output should be formatted in the style of json or at least provide context as a see better results when I do. 
 I can only guess this is because the AI doesn't remember what functions it called so when it calls for example `get_current_time` and gets only time like 10:20:34 
 it just remembers some numbers as result and doesn't know the context of them but if you return {"current_time":"10:16:19"} it will now know that what it got is current time. 
