@@ -1,19 +1,6 @@
 # Telegram-Assistant
 
-This is personal AI assistant that communicates with the user using Telegram. It's bit of a personal project that I decide to make public, so I am forced to put sensitive information such as keys somewhere else that in to the source code. 
-Originally this was very focused on using AI to manage stuff like my timers or notes, but either the models are too expensive for me to use on daily basis, or they aren't smart enough to actually perform operations I need from them consistently, without me having the check their work. 
-So while the AI is still part of this bot, it's taking a back seat until it gets to a point where it can handle more complex tasks without needing babysitter. 
-
-NOTE: I'm slowly getting this project to a state where anybody could run their own version, it currently only needs `TELEGRAM_KEY`, `OPENAI_KEY` and `VALKEY_URI` passed as environment variables, I used aiven to host my Valkey instance, but it should be possible to run one on local host.
-
-Currently, the AI assistant can create reminders, create and manage files and I allowed for it to be able to see send images. 
-The private note command `/q` also requires `PRIVATE_NOTES_PASSWORD` to be set in environment variables.
-
-## TODO 
-- add google calendar integration
-- implement retrival mode
-- novelAI image generation (maybe even text if I'm bored)
-
+This is personal AI assistant that communicates with the user using Telegram. It's bit of a personal project that I decided to make public, so I am forced to put sensitive information such as keys somewhere else that in to the source code. This has been started way before agents like OpenClaw existed, and contains mix of many of the at the time SOTA aproachest to building a agent, though it is not always keep up to date. The project also includes many personal tools that help me in day to day organization. 
 
 ## TelegramCommands 
 - `toggle_retrival` - doesn't work yet
