@@ -17,6 +17,8 @@ class BotData(Enum):
 
     FILE_MANAGER = "file_manager"
 
+    FILE_WATCH_TASKS = "file_watch_tasks"
+
 
 
 

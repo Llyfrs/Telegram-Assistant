@@ -1,3 +1,10 @@
+# Python environment
+
+Run tooling with the project virtualenv, not system Python:
+
+- Interpreter: `venv/bin/python` (repo root: `telegram-assistant/venv`)
+- Examples: `venv/bin/python -m pip install -r requirements.txt`, `venv/bin/python -m pytest`, `venv/bin/python main.py`
+
 # Logging
 
 Use the centralized logging from `utils/logging`:

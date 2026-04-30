@@ -10,4 +10,5 @@ __pycache__
 .env
 /.vscode/
 /storage/
+/run_logs/
 /service_account.json
